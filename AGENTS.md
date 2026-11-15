@@ -79,7 +79,7 @@ src/
 アプリのビルド・署名・提出はクラウドの EAS で行い（`eas build`、`eas submit`）、OTA アップデートの配信も EAS で行う（`eas update`） — ローカルの Xcode や Android Studio は要らない。EAS CLI は、Bun のプロジェクトでは `bunx eas-cli <command>`、それ以外では `npx eas-cli@latest <command>` として実行する。ドキュメントの例にある素の `eas` は、これに読み替えること。
 ドキュメント: <https://docs.expo.dev/eas/index.md>
 
-Android は GitHub Actions でもビルドできる（`.github/workflows/build-android.yml`）: runner の上で `eas build --local` を実行し、署名の鍵は EAS から取る。手動で実行する（プロファイルを選ぶ）か、`v*` のタグを push すると `production-apk` の APK が Release に付く（タグは `app.json` の `version` と同じでなければならない: `0.0.1` なら `v0.0.1`）。リポジトリの Secret に `EXPO_TOKEN` が要る。EAS CLI の版はワークフローの `EAS_CLI_VERSION` で固定している。
+Android は GitHub Actions でもビルドできる（`.github/workflows/build-android.yml`）: runner の上で `eas build --local` を実行し、署名の鍵は EAS から取る。手動で実行する（プロファイルを選ぶ）か、`v*` のタグを push すると `production-apk` の APK が Release に付く（タグは `app.json` の `version` と同じでなければならない: `0.0.1` なら `v0.0.1`）。リポジトリの Secret に `EXPO_TOKEN` が要る。EAS CLI の版はワークフローの `EAS_CLI_VERSION` で固定している。 APK のプロファイル（`development`・`preview`・`production-apk`）は arm64 だけをビルドする（`eas.json` の `env`）。Play ストア向けの AAB を出す `production` は絞らない。
 
 ## ルール
 
