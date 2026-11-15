@@ -8,8 +8,10 @@ import {
   type SheetDetail,
   type SheetMenu,
 } from "@/components/ActionSheet";
+import { Icon } from "@/components/Icon";
 import { IconButton } from "@/components/IconButton";
 import { NativeButton } from "@/components/NativeButton";
+import { NativeTextField } from "@/components/NativeTextField";
 import { Pressable } from "@/components/Pressable";
 import { RowGroup } from "@/components/RowGroup";
 import { EmptyState, Screen, Section } from "@/components/Screen";
@@ -22,6 +24,7 @@ import { isWebNovel, sourceLabels, type Book } from "@/features/books/book";
 import { byDay, type HistoryItem } from "./history";
 import { useLibrary } from "./Library";
 import { lastReadChapter } from "./savedWorks";
+import { matchesSearch } from "./search";
 import { loadShelfView, saveShelfView, type ShelfView } from "./shelfView";
 
 type Tab = "shelf" | "history";
@@ -209,7 +212,15 @@ export default function BookshelfScreen() {
     }
     closeBook(book.id);
   }
-  const { shelf, recent, lastRead } = library;
+  const { lastRead } = library;
+  // 検索の欄は、虫めがねを押している間だけ出る。閉じると言葉も消える。
+  const [searching, setSearching] = useState(false);
+  const [query, setQuery] = useState("");
+  const shelf = library.shelf.filter((book) => matchesSearch(book, query));
+  const recent = library.recent.filter((item) =>
+    matchesSearch(item.book, query),
+  );
+  const filtered = query.trim() !== "";
   const [tab, setTab] = useState<Tab>("shelf");
   const [view, setView] = useState<ShelfView>(loadShelfView);
   const [menu, setMenu] = useState<SheetMenu | null>(null);
@@ -345,7 +356,14 @@ export default function BookshelfScreen() {
     <View style={styles.root}>
       <Screen
         title="本棚"
-        actions=<IconButton icon="search" label="検索" disabled />
+        actions=<IconButton
+          icon={searching ? "x" : "search"}
+          label={searching ? "検索を閉じる" : "検索"}
+          onPress={() => {
+            setSearching(!searching);
+            setQuery("");
+          }}
+        />
         // 引き下げると、本棚を端末から読み直す。
         refreshing={refreshing}
         onRefresh={() => {
@@ -360,6 +378,18 @@ export default function BookshelfScreen() {
         }}
       >
         <View style={styles.controls}>
+          {searching && (
+            <View style={styles.field}>
+              <Icon name="search" size={16} color={colors.secondary} />
+              <NativeTextField
+                accessibilityLabel="作品を検索"
+                placeholder="書名・著者で検索"
+                returnKeyType="search"
+                autoFocus
+                onChangeText={setQuery}
+              />
+            </View>
+          )}
           <View style={styles.tabs} accessibilityRole="tablist">
             {tabs.map((item) => (
               <View key={item.key} style={styles.tab}>
@@ -401,7 +431,7 @@ export default function BookshelfScreen() {
                 label="履歴のメニュー"
                 size={20}
                 color={colors.secondary}
-                disabled={recent.length === 0}
+                disabled={library.recent.length === 0}
                 onPress={() => {
                   setMenu(historyActions);
                 }}
@@ -431,7 +461,14 @@ export default function BookshelfScreen() {
               ))}
             </RowGroup>
           ))}
-        {tab === "shelf" && shelf.length === 0 && (
+        {filtered && (tab === "shelf" ? shelf : recent).length === 0 && (
+          <EmptyState
+            icon="search"
+            title="見つかりませんでした"
+            description="書名か著者の一部を入れてください。"
+          />
+        )}
+        {tab === "shelf" && !filtered && shelf.length === 0 && (
           <EmptyState
             icon="library"
             title="本棚は空です"
@@ -454,7 +491,7 @@ export default function BookshelfScreen() {
               </RowGroup>
             </Section>
           ))}
-        {tab === "history" && recent.length === 0 && (
+        {tab === "history" && !filtered && recent.length === 0 && (
           <EmptyState
             icon="library"
             title="履歴はありません"
@@ -475,6 +512,16 @@ export default function BookshelfScreen() {
 const styles = StyleSheet.create({
   root: { flex: 1 },
   controls: { gap: 4 },
+  field: {
+    minHeight: 44,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+    borderRadius: 10,
+    backgroundColor: colors.surface,
+  },
   tabs: { flexDirection: "row", gap: 8 },
   tab: { flex: 1 },
   // 端にあるアイコンボタンと同じ高さ。ボタンは余白の端まで届く。

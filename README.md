@@ -1,4 +1,4 @@
-# soyoli
+# Soyoli
 
 日本語の小説を「読む」と「聴く（端末の音声合成による読み上げ）」の両方で楽しむモバイルアプリ（Expo / React Native）。
 
@@ -22,3 +22,14 @@ pnpm lint        # lint（oxlint）
 pnpm typecheck   # 型チェック
 pnpm test        # テスト（jest-expo）
 ```
+
+## ライセンス
+
+© 2026 ellreka. All rights reserved.
+
+このリポジトリにオープンソースライセンスは付けていない。ソースコード、アプリ名「Soyoli」、アイコンの複製・改変・再配布は許可しない。
+
+次のものは、それぞれの権利者のライセンスに従う:
+
+- ページをめくる音（`assets/sounds/page-turn.mp3`）: [OtoLogic](https://otologic.jp) の素材（[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/deed.ja)）
+- 使っているライブラリ: アプリの「設定」→「オープンソースライセンス」に一覧と本文がある（`assets/licenses.json`）

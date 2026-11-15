@@ -9,8 +9,7 @@ import type { SavedPlayback } from "./storage";
  * 作品をどう読み上げるか: 全作品に共通の 1 組で、起動をまたいで保存する。
  *
  * 最初の 4 つは声を形作るので、どれかを変えると読み上げ中の段落を
- * やり直す。最後の 2 つは読み上げの周りの設定で、変えてもやり直しては
- * ならない。
+ * やり直す。残りは読み上げの周りの設定で、変えてもやり直してはならない。
  */
 export interface PlaybackSettings {
   rate: number;
@@ -23,6 +22,10 @@ export interface PlaybackSettings {
   keepAwake: boolean;
   /** 別の章へ読み進めたときに、ページめくりの音を鳴らす。 */
   pageSound: boolean;
+  /** 話を読み終えたら、次の話を続けて読む。 */
+  autoNext: boolean;
+  /** Web 小説の前書きと後書きも、本文と一緒に出して読む。 */
+  authorNotes: boolean;
 }
 
 /** 前回のセッションが残した設定。残していないものは既定値。 */
@@ -34,5 +37,7 @@ export function initialSettings(saved: SavedPlayback | null): PlaybackSettings {
     brackets: toBracketVoices(saved?.brackets),
     keepAwake: saved?.keepAwake === true,
     pageSound: saved?.pageSound !== false,
+    autoNext: saved?.autoNext !== false,
+    authorNotes: saved?.authorNotes === true,
   };
 }

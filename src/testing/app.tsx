@@ -21,7 +21,10 @@ import VoiceSettingsScreen from "@/app/(tabs)/settings/speed";
 import BracketVoicesModal from "@/app/bracket-voices";
 import DictionarySettingsScreen from "@/app/(tabs)/settings/dictionary";
 import SettingsScreen from "@/app/(tabs)/settings/index";
+import LicenseScreen from "@/app/(tabs)/settings/license";
+import LicensesScreen from "@/app/(tabs)/settings/licenses";
 import ReaderScreen from "@/app/reader";
+import { pickBackup, saveBackup } from "@/features/backup/backupFile";
 import type { Book } from "@/features/books/book";
 import { removeFile } from "@/features/books/fileStore";
 import {
@@ -190,6 +193,11 @@ jest.mock("@/features/books/import", () => ({
   openSavedFile: jest.fn(),
   importFile: jest.fn(),
 }));
+jest.mock("@/features/about/version", () => ({ appVersion: () => "1.2.3" }));
+jest.mock("@/features/backup/backupFile", () => ({
+  saveBackup: jest.fn(() => Promise.resolve({ canceled: true })),
+  pickBackup: jest.fn(() => Promise.resolve({ canceled: true })),
+}));
 jest.mock("@/features/books/fileStore", () => ({ removeFile: jest.fn() }));
 jest.mock("@/features/library/shelfOrder", () => ({
   ...jest.requireActual("@/features/library/shelfOrder"),
@@ -265,6 +273,8 @@ export const routes = {
   "(tabs)/settings/speed": VoiceSettingsScreen,
   "bracket-voices": BracketVoicesModal,
   "(tabs)/settings/dictionary": DictionarySettingsScreen,
+  "(tabs)/settings/licenses": LicensesScreen,
+  "(tabs)/settings/license": LicenseScreen,
   reader: ReaderScreen,
   dictionary: DictionaryEditScreen,
   "dictionary-select": DictionarySelectScreen,
@@ -329,6 +339,8 @@ beforeEach(() => {
   jest.mocked(openSavedFile).mockReset();
   jest.mocked(importFile).mockReset();
   jest.mocked(removeFile).mockClear();
+  jest.mocked(saveBackup).mockReset().mockResolvedValue({ canceled: true });
+  jest.mocked(pickBackup).mockReset().mockResolvedValue({ canceled: true });
   jest.mocked(saveLibrary).mockClear();
   jest.mocked(loadShelfOrder).mockReset().mockReturnValue([]);
   jest.mocked(saveShelfOrder).mockClear();

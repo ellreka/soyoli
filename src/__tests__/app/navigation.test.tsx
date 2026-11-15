@@ -276,6 +276,15 @@ it("nests the settings: a list of items, each opening its own page", async () =>
     screen.getByRole("button", { name: "ページをめくる音" }),
   );
   expect(screen.getByTestId("settings-page-sound-switch")).not.toBeChecked();
+  // 連続再生は最初からオン、前書き・後書きはオフ。
+  expect(screen.getByTestId("settings-auto-next-switch")).toBeChecked();
+  await fireEvent.press(screen.getByRole("button", { name: "連続再生" }));
+  expect(screen.getByTestId("settings-auto-next-switch")).not.toBeChecked();
+  expect(screen.getByTestId("settings-author-notes-switch")).not.toBeChecked();
+  await fireEvent.press(
+    screen.getByRole("button", { name: "前書き・後書きを読む" }),
+  );
+  expect(screen.getByTestId("settings-author-notes-switch")).toBeChecked();
   const awake = screen.getByTestId("settings-keep-awake-switch");
   expect(awake).not.toBeChecked();
   await fireEvent(awake, "valueChange", true);

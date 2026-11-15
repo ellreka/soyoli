@@ -19,6 +19,8 @@ pnpm lint                   # oxlint で lint（設定: oxlint.config.mts。`exp
 pnpm format                 # oxfmt で整形（設定: .oxfmtrc.json）。`pnpm format:check` は確認だけ
 pnpm typecheck              # 型チェック（tsc --noEmit）
 pnpm test                   # ユニットテスト（jest-expo）
+pnpm licenses:update        # 依存を足した・上げた後に、ライセンスの一覧（assets/licenses.json）を作り直す
+pnpm licenses:native        # ネイティブの依存が変わった後に、その一覧（scripts/native-licenses.json）を作り直す。先に prebuild が要る
 npx expo-doctor             # 依存関係と設定の問題を診断する
 npx expo install --fix      # 互換性のないパッケージのバージョンを直す
 ```
@@ -45,6 +47,8 @@ src/
     loading/      再生が来た章の本文の取得。最後の本の復元
     reader/       ビューアー: 章の本文、そのシート、表示設定
     browser/      アプリ内ブラウザと、話の検出
+    backup/       バックアップ: ファイルの形（backup.ts）、ファイルの保存と選択、設定の行
+    about/        このアプリについて: バージョン、使っているライブラリのライセンスの一覧と本文
     home/ settings/   残り 2 つのタブ
 ```
 
@@ -55,7 +59,9 @@ src/
 - **段落が単位。** 読み上げられ、ハイライトされ、位置として保存されるのは `Paragraph`（`books/paragraphs.ts`）で、「文」ではない。`playback.json` はそのインデックスを今も `sentenceIndex` と呼んでいて、`player/storage.ts` が読み替える。ディスク上のキーの名前は変えないこと。
 - **保存したファイルの形は永遠。** ディスクから読み戻すものはすべて、読む場所で検証する（`toDictionary`、`fromSavedWorks`、`initialSettings`、`savedPositions`）。古いファイルも動き続けなければならない。
 - **開いている本は 2 か所で持たれる。** ライブラリ（画面が見せるもの）とプレーヤー（読み上げるもの）。作品を開くには `addBook`、続いて `playback.openBook`。開いている本を変える（章の本文が届いた、目次の続きが届いた）には `useOpenBook().replace` を使い、それ以外は使わない。
-- **`playback.state` は何をどこで読むか、`playback.settings` はどう読むか。** 速度・高さ・声・カッコの声を変えると、読み上げ中の段落をやり直す。`keepAwake` と `pageSound` はやり直してはならない。
+- **`playback.state` は何をどこで読むか、`playback.settings` はどう読むか。** 速度・高さ・声・カッコの声を変えると、読み上げ中の段落をやり直す。`keepAwake`・`pageSound`・`autoNext`・`authorNotes` はやり直してはならない。
+- **バックアップのファイルも、保存したファイルと同じく形は永遠。** 入るのは辞書・音声設定・Web 小説のメタ情報と読みかけの位置だけ（`backup/backup.ts`）。読み戻すときは、端末のファイルと同じ検証を通す。
+- **依存を変えたら、ライセンスの一覧を作り直す。** `assets/licenses.json` は `scripts/licenses.mjs` が書く生成物で、手で編集しない。載るのはアプリに入るものだけで、スクリプトは iOS と Android のバンドルを書き出して調べる（1 分ほどかかる）。ネイティブ側だけが入れるライブラリは `scripts/native-licenses.json` に持つ（これも生成物）: Expo や React Native を上げた、ネイティブのライブラリを足したときは、`npx expo prebuild` のあと `pnpm licenses:native`、続けて `pnpm licenses:update` を実行する。ライブラリではない素材（音など）は `scripts/licenses.mjs` の `extras` に足す。作り直し忘れはテストが落ちて知らせる。
 - **新しいサイト** は、`web/sites/` に `WebSite` を実装したファイルを 1 つ、`sites/index.ts` に項目を 1 つ、`books/book.ts` にその id と名前を足す。**新しいファイル形式** は、`books/import.ts` の `formats` に項目を 1 つ足す。
 - **Web 小説: 保存するのはメタ情報だけ。** 本文も目次も決して保存しない。保存する範囲を広げる前に確認すること。
 - **テスト:** 対象ごとのユニットテストは `src/__tests__/` に、画面を通すテストは `src/__tests__/app/` に置く（最初に `@/testing/app` を import する: これが偽物を用意する）。

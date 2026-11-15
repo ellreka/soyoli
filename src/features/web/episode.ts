@@ -128,35 +128,49 @@ export function chainNextEpisode(
     : [...chapters, next];
 }
 
+/** 前書き・本文・後書きの間に置く区切り: 段落がつながらないようにする。 */
+const divider: ContentNode = { type: "element", tag: "hr", children: [] };
+
 /**
  * リーダーが表示し、読み上げる形の話の本文: まずページのタイトルを見出しと
- * して、続いて本文。
+ * して、続いて本文。`authorNotes` なら、前書きを本文の前に、後書きを後ろに
+ * 足す（あるものだけ）。
  */
 export function episodeContent(
-  title: string,
-  body: ContentNode[],
+  episode: Pick<WebEpisode, "title" | "preface" | "body" | "afterword">,
+  authorNotes = false,
 ): ContentNode[] {
-  return title.trim()
+  const title = episode.title.trim();
+  const parts = authorNotes
+    ? [episode.preface, episode.body, episode.afterword]
+    : [episode.body];
+  const heading: ContentNode[] = title
     ? [
         {
           type: "element",
           tag: "h1",
-          children: [{ type: "text", text: title.trim() }],
+          children: [{ type: "text", text: title }],
         },
-        ...body,
       ]
-    : body;
+    : [];
+  return [
+    ...heading,
+    ...parts
+      .filter((part) => part.length > 0)
+      .flatMap((part, index) => (index > 0 ? [divider, ...part] : part)),
+  ];
 }
 
 /**
- * その話のためのリーダー用の本。前書きと後書きは含めない（§4.11、§5）。
- * 目次を取得してあれば、本は一覧にある話すべてにわたる: ほかの話は URL
- * だけで本文がなく、リーダーが必要になったときに読み込む — 先に取得する
- * のは目次だけ。
+ * その話のためのリーダー用の本。前書きと後書きは、`authorNotes` のときだけ
+ * 含める。目次を取得してあれば、本は一覧にある話すべてにわたる: ほかの話は
+ * URL だけで本文がなく、リーダーが必要になったときに読み込む — 先に取得
+ * するのは目次だけ。
  */
 export function episodeToBook(
   episode: WebEpisode,
   toc: WorkToc = { entries: [] },
+  authorNotes = false,
 ): Book {
   const tocTitle = toc.entries.find(
     (entry) => entry.id === episode.episodeId,
@@ -174,7 +188,7 @@ export function episodeToBook(
         title:
           tocTitle !== undefined && tocTitle !== "" ? tocTitle : episode.title,
         url: episode.url,
-        content: episodeContent(episode.title, episode.body),
+        content: episodeContent(episode, authorNotes),
       },
     ],
   };

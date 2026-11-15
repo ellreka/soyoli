@@ -33,7 +33,7 @@ import {
   type PlaybackState,
 } from "./playbackState";
 import { initialSettings, type PlaybackSettings } from "./settings";
-import { loadPlayback } from "./storage";
+import { loadPlayback, type SavedPosition } from "./storage";
 import { useGeneration } from "./useGeneration";
 import { usePreview } from "./usePreview";
 import { useReadAloud } from "./useReadAloud";
@@ -61,6 +61,12 @@ function usePlaybackState() {
   useEffect(() => {
     dictionaryRef.current = dictionary;
   }, [dictionary]);
+
+  // 読み上げ中に切り替えても、読んでいる段落はやり直さない: 話の終わりで読む。
+  const autoNextRef = useRef(settings.autoNext);
+  useEffect(() => {
+    autoNextRef.current = settings.autoNext;
+  }, [settings.autoNext]);
 
   const generation = useGeneration();
   const { preview, previewError, setPreviewError, startPreview, stopPreview } =
@@ -95,6 +101,7 @@ function usePlaybackState() {
     generation,
     dictionary: dictionaryRef,
     timer: timerRef,
+    autoNext: autoNextRef,
     onChapterTurn,
     change,
     setSleepTimer,
@@ -284,12 +291,31 @@ function usePlaybackState() {
       }));
     }
   }
-  // この 2 つは声に関わらない: 読み上げ中のものは打ち切らない。
+  // ここからは声に関わらない: 読み上げ中のものは打ち切らない。
   function setPageSound(pageSound: boolean) {
     setSettings((current) => ({ ...current, pageSound }));
   }
   function setKeepAwake(keepAwake: boolean) {
     setSettings((current) => ({ ...current, keepAwake }));
+  }
+  function setAutoNext(autoNext: boolean) {
+    setSettings((current) => ({ ...current, autoNext }));
+  }
+  /** 次に取得する話から効く: 届いている本文は書き換えない。 */
+  function setAuthorNotes(authorNotes: boolean) {
+    setSettings((current) => ({ ...current, authorNotes }));
+  }
+  /**
+   * バックアップから取り込む: 読み方を入れ替え（あれば）、作品の読みかけの
+   * 位置を足す。位置は次にその作品を開いたときから効く。
+   */
+  function restore(
+    next: PlaybackSettings | undefined,
+    positions: Record<string, SavedPosition>,
+  ) {
+    Object.assign(positionsOf(), positions);
+    // 設定が変わると、位置も一緒に保存される。
+    setVoiceSettings(next ?? {});
   }
   /** 声の試聴を再生する。指定した高さか、基本の高さで。 */
   function previewVoice(voice?: string, pitch?: number) {
@@ -315,6 +341,8 @@ function usePlaybackState() {
     settings,
     /** アプリを最後に使ったときに開いていた本。あれば。 */
     lastBookId: saved?.bookId ?? null,
+    /** 読者が各本を読みかけた位置。本の id ごと。 */
+    positionsOf,
     error,
     preview,
     previewError,
@@ -336,6 +364,9 @@ function usePlaybackState() {
     setBracketVoice,
     setKeepAwake,
     setPageSound,
+    setAutoNext,
+    setAuthorNotes,
+    restore,
     previewVoice,
     stopPreview,
     setSleepTimer,

@@ -299,7 +299,7 @@ describe("episode pages", () => {
           title: "第二話　出会い",
           url: narouEpisodeUrl,
           // ページのタイトルが本文の先頭に来るので、表示も読み上げもされる。
-          content: episodeContent("第二話　出会い", episode.body),
+          content: episodeContent(episode),
         },
         // 目次がなくても、ページの「次へ」リンクで次の話にたどり着ける。
         {
@@ -343,6 +343,25 @@ describe("episode pages", () => {
     });
   });
 
+  it("puts the preface before the text and the afterword after it when asked", () => {
+    const episode = parseEpisode(narouEpisodeHtml, narouEpisodeUrl)!;
+    const hr = { type: "element", tag: "hr", children: [] };
+    expect(episodeContent(episode, true)).toEqual([
+      episodeContent(episode)[0],
+      ...episode.preface,
+      hr,
+      ...episode.body,
+      hr,
+      ...episode.afterword,
+    ]);
+    // 前書きも後書きもない話は、本文だけのまま。
+    const plain = { ...episode, preface: [], afterword: [] };
+    expect(episodeContent(plain, true)).toEqual(episodeContent(episode));
+    expect(episodeToBook(episode, undefined, true).chapters[0].content).toEqual(
+      episodeContent(episode, true),
+    );
+  });
+
   it("builds a whole-work book whose other episodes load on demand", () => {
     const episode = parseEpisode(narouEpisodeHtml, narouEpisodeUrl)!;
     const toc = parseToc(narouTocHtml, "https://ncode.syosetu.com/n1234ab/");
@@ -360,7 +379,7 @@ describe("episode pages", () => {
         title: "第二話　出会い",
         url: narouEpisodeUrl,
         // ページのタイトルが本文の先頭に来るので、表示も読み上げもされる。
-        content: episodeContent("第二話　出会い", episode.body),
+        content: episodeContent(episode),
       },
       {
         id: "3",

@@ -36,7 +36,7 @@ it("shows the shelf as a grid or a list, without counts or filters, and continue
   expect(screen.queryByText(/作品 ·/)).toBeNull();
   expect(screen.queryByRole("tab", { name: "なろう" })).toBeNull();
   expect(screen.queryByRole("button", { name: "作品を追加" })).toBeNull();
-  expect(screen.getByRole("button", { name: "検索" })).toBeDisabled();
+  expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
   expect(screen.getByRole("tab", { name: "本棚の作品" })).toBeSelected();
   // リストは各作品についてより多くを見せ、選んだ表示は保存される。
   await fireEvent.press(
@@ -86,6 +86,36 @@ it("shows the shelf as a grid or a list, without counts or filters, and continue
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("link", { name: "ビューアーを開く" }));
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
+});
+
+it("searches the shelf by title and author, and shows everything again when closed", async () => {
+  seed(book, { ...book, id: "sample-02", title: "別の物語", author: "ヤマダ" });
+  await renderRouter(routes);
+  await screen.findByRole("link", { name: "サンプル作品を開く" });
+  // 欄は、虫めがねを押すまで出ない。
+  expect(screen.queryByLabelText("作品を検索")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "検索" }));
+  await fireEvent.changeText(screen.getByLabelText("作品を検索"), "物語");
+  expect(
+    screen.getByRole("link", { name: "別の物語を開く" }),
+  ).toBeOnTheScreen();
+  expect(screen.queryByRole("link", { name: "サンプル作品を開く" })).toBeNull();
+  // 著者でも探せる。ひらがなとカタカナは区別しない。
+  await fireEvent.changeText(screen.getByLabelText("作品を検索"), "やまだ");
+  expect(
+    screen.getByRole("link", { name: "別の物語を開く" }),
+  ).toBeOnTheScreen();
+  await fireEvent.changeText(screen.getByLabelText("作品を検索"), "ない言葉");
+  expect(screen.getByText("見つかりませんでした")).toBeOnTheScreen();
+  expect(screen.queryByText("本棚は空です")).toBeNull();
+  await fireEvent.press(screen.getByRole("button", { name: "検索を閉じる" }));
+  expect(screen.queryByLabelText("作品を検索")).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "サンプル作品を開く" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("link", { name: "別の物語を開く" }),
+  ).toBeOnTheScreen();
 });
 
 it("keeps a web novel off the shelf until it is bookmarked, then remembers it", async () => {

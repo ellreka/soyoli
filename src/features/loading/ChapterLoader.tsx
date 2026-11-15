@@ -128,7 +128,7 @@ export function ChapterLoaderProvider({ children }: { children: ReactNode }) {
         if (request.signal.aborted || !current) {
           return;
         }
-        const { seekChapter, state: now } = open.playback();
+        const { seekChapter, state: now, settings } = open.playback();
         const episode = isTocPageUrl(url) ? null : parseEpisode(html, url);
         if (episode) {
           const updated: Book = {
@@ -139,7 +139,7 @@ export function ChapterLoaderProvider({ children }: { children: ReactNode }) {
                   ? {
                       ...item,
                       title: episode.title,
-                      content: episodeContent(episode.title, episode.body),
+                      content: episodeContent(episode, settings.authorNotes),
                     }
                   : item,
               ),

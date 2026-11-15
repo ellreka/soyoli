@@ -45,6 +45,8 @@ interface DictionaryValue {
   ) => void;
   /** アプリ自身のルールの 1 つをオン／オフにする。 */
   setSystemEnabled: (ruleId: string, enabled: boolean) => void;
+  /** 辞書を丸ごと入れ替える。バックアップから取り込むときのためのもの。 */
+  replace: (dictionary: Dictionary) => void;
 }
 
 // プロバイダーがなければ、単にルールがないだけ: 読み上げは、辞書が
@@ -59,6 +61,7 @@ const DictionaryContext = createContext<DictionaryValue>({
   assign: () => undefined,
   setEnabled: () => undefined,
   setSystemEnabled: () => undefined,
+  replace: () => undefined,
 });
 
 let created = 0;
@@ -148,6 +151,7 @@ export function DictionaryProvider({ children }: { children: ReactNode }) {
     setSystemEnabled: (ruleId, enabled) => {
       setDictionary((current) => setSystemRule(current, ruleId, enabled));
     },
+    replace: setDictionary,
   };
 
   return <DictionaryContext value={value}>{children}</DictionaryContext>;

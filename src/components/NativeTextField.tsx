@@ -13,6 +13,8 @@ export interface NativeTextFieldProps {
   /** フィールドの最初の文字列。その後はフィールドが自分の文字列を持つ。 */
   defaultValue?: string;
   placeholder?: string;
+  /** 出たときに、入力を始められる状態にする。 */
+  autoFocus?: boolean;
   multiline?: boolean;
   keyboardType?: KeyboardTypeOptions;
   returnKeyType?: ReturnKeyTypeOptions;
@@ -32,6 +34,7 @@ export function NativeTextField({
   accessibilityLabel,
   defaultValue,
   placeholder,
+  autoFocus,
   multiline,
   keyboardType,
   returnKeyType,
@@ -47,6 +50,7 @@ export function NativeTextField({
       accessibilityLabel={accessibilityLabel}
       defaultValue={defaultValue}
       placeholder={placeholder}
+      autoFocus={autoFocus}
       placeholderTextColor={colors.secondary}
       selectionColor={colors.secondary}
       multiline={multiline}

@@ -13,7 +13,9 @@
     "test": "jest",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
-    "format:check": "oxfmt --check"
+    "format:check": "oxfmt --check",
+    "licenses:update": "node scripts/licenses.mjs",
+    "licenses:native": "node scripts/native-licenses.mjs"
   },
   "dependencies": {
     "@expo/material-symbols": "^0.1.1",

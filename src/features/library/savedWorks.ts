@@ -45,6 +45,15 @@ export function withRead(
 /** 最後に読んだ話の章 id。本の id ごと。 */
 export type LastRead = Record<string, string>;
 
+/** Web 小説と、それぞれについて覚えていること。 */
+export interface Works {
+  books: Book[];
+  lastRead: LastRead;
+  /** 本棚にある作品の id。履歴ができる前のファイルには、これしかない。 */
+  bookmarked: string[];
+  history: History;
+}
+
 /** Web 小説で最後に読んだ話。なければ、追加したときの話。 */
 export function lastReadChapter(
   book: Book,
@@ -139,13 +148,7 @@ function toSavedWork(value: unknown): SavedWork | null {
  * 保存した作品を本にする。どれも最後に読んだ話だけを持ち、本文はまだない。
  * ファイルの中の壊れたものは落とす。
  */
-export function fromSavedWorks(value: unknown): {
-  books: Book[];
-  lastRead: LastRead;
-  /** 本棚にある作品の id。履歴ができる前のファイルには、これしかない。 */
-  bookmarked: string[];
-  history: History;
-} {
+export function fromSavedWorks(value: unknown): Works {
   const books: Book[] = [];
   const lastRead: LastRead = {};
   const bookmarked: string[] = [];
@@ -172,4 +175,84 @@ export function fromSavedWorks(value: unknown): {
     }
   }
   return { books, lastRead, bookmarked, history };
+}
+
+/**
+ * 取り込む作品の読みかけ（最後に読んだ話とその中の位置）を採るかどうか。
+ * 端末にない作品は採る。ある作品は、取り込む側のほうが後に読まれていれば
+ * 採る。開いている作品（`openId`）は今読んでいるものなので、採らない。
+ */
+export function takesProgress(
+  current: Works,
+  incoming: Works,
+  bookId: string,
+  openId?: string | null,
+): boolean {
+  if (!current.books.some((book) => book.id === bookId)) {
+    return true;
+  }
+  const readAt = incoming.history[bookId];
+  return (
+    bookId !== openId &&
+    readAt !== undefined &&
+    readAt > (current.history[bookId] ?? -Infinity)
+  );
+}
+
+/**
+ * 端末の作品に、バックアップの作品（`incoming`）を足したもの。端末にしか
+ * ない作品は残る。両方にある作品は本棚に入り、読みかけは `takesProgress`
+ * が選んだ側のものになる。
+ */
+export function mergeWorks(
+  current: Works,
+  incoming: Works,
+  openId?: string | null,
+): Works {
+  let books = current.books;
+  const added: Book[] = [];
+  const lastRead = { ...current.lastRead };
+  const history = { ...current.history };
+  const bookmarked = [...current.bookmarked];
+  for (const book of incoming.books) {
+    const known = current.books.find((item) => item.id === book.id);
+    // 同じ id のファイル由来の作品: 別のものなので触らない。
+    if (known && !isWebNovel(known)) {
+      continue;
+    }
+    if (
+      incoming.bookmarked.includes(book.id) &&
+      !bookmarked.includes(book.id)
+    ) {
+      bookmarked.push(book.id);
+    }
+    if (!takesProgress(current, incoming, book.id, openId)) {
+      continue;
+    }
+    const episode = incoming.lastRead[book.id];
+    if (!known) {
+      added.push(book);
+    } else if (known.chapters.every((chapter) => !chapter.content.length)) {
+      // まだ本文を持っていない: 取り込む側の話で置き換えても失うものがない。
+      books = books.map((item) => (item === known ? book : item));
+    } else if (!known.chapters.some((chapter) => chapter.id === episode)) {
+      // 読み込み済みの話の中に、その話がない: 今のままにする。
+      continue;
+    }
+    lastRead[book.id] = episode;
+    const readAt = incoming.history[book.id];
+    if (readAt !== undefined) {
+      history[book.id] = readAt;
+    }
+  }
+  return {
+    books: [...added, ...books],
+    lastRead,
+    bookmarked,
+    history: Object.fromEntries(
+      Object.entries(history)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, historyLimit),
+    ),
+  };
 }

@@ -21,10 +21,12 @@ import {
 } from "./shelfOrder";
 import {
   fromSavedWorks,
+  mergeWorks,
   toSavedWorks,
   withRead,
   type History,
   type LastRead,
+  type Works,
 } from "./savedWorks";
 
 interface LibraryState {
@@ -88,6 +90,11 @@ interface LibraryValue extends LibraryState {
   /** 作品を履歴から消す。本棚とその位置は残る。 */
   removeHistory: (bookId: string) => void;
   clearHistory: () => void;
+  /**
+   * バックアップの Web 小説を本棚と履歴に足す（`mergeWorks`）。開いている
+   * 作品（`openId`）の読みかけは変えない。
+   */
+  mergeSaved: (incoming: Works, openId?: string | null) => void;
 }
 
 const LibraryContext = createContext<LibraryValue | null>(null);
@@ -281,6 +288,13 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
     setState((current) => ({ ...current, history: {} }));
   }
 
+  function mergeSaved(incoming: Works, openId?: string | null) {
+    setState((current) => ({
+      ...current,
+      ...mergeWorks(current, incoming, openId),
+    }));
+  }
+
   const recent = state.books
     .flatMap((book) => {
       const readAt = state.history[book.id];
@@ -308,6 +322,7 @@ export function LibraryProvider({ children }: { children: ReactNode }) {
         markOpened,
         removeHistory,
         clearHistory,
+        mergeSaved,
       }}
     >
       {children}

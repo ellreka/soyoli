@@ -93,7 +93,7 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
   const [instance, setInstance] = useState({ key: 0, url: startUrl });
   const detection = useEpisodeDetection(webView, page.url);
   const { addBook, isBookmarked, setBookmarked } = useLibrary();
-  const { openBook } = usePlayback();
+  const { openBook, settings } = usePlayback();
   const { canGoBack } = page;
 
   useFocusEffect(
@@ -124,7 +124,11 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
   }
 
   function toBook(target: WebEpisode) {
-    return episodeToBook(target, target.toc ?? { entries: [] });
+    return episodeToBook(
+      target,
+      target.toc ?? { entries: [] },
+      settings.authorNotes,
+    );
   }
 
   // 読んでも作品は本棚に入らない。入れるのはブックマークボタン。

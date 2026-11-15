@@ -11,6 +11,7 @@ export function NativeTextField({
   accessibilityLabel,
   defaultValue,
   placeholder,
+  autoFocus,
   multiline,
   keyboardType,
   returnKeyType,
@@ -25,6 +26,7 @@ export function NativeTextField({
         accessibilityLabel={accessibilityLabel}
         defaultValue={defaultValue}
         placeholder={placeholder}
+        autoFocus={autoFocus}
         placeholderTextColor={colors.secondary}
         cursorColor={colors.text}
         multiline={multiline}

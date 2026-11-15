@@ -314,6 +314,34 @@ it("stops at a chapter boundary without losing the next listening position", asy
   expect(result.current.timer).toBeNull();
 });
 
+it("stops at the end of an episode when it is not to read on, without restarting what it reads", async () => {
+  const { result } = await setup();
+  await act(async () => {
+    result.current.toggle();
+  });
+  expect(Speech.speak).toHaveBeenCalledTimes(1);
+  // 読み上げ中に切り替えても、読んでいる段落はやり直さない。
+  await act(async () => {
+    result.current.setAutoNext(false);
+  });
+  expect(result.current.settings.autoNext).toBe(false);
+  expect(Speech.speak).toHaveBeenCalledTimes(1);
+  expect(result.current.state.playing).toBe(true);
+  await act(async () => {
+    done();
+  });
+  expect(result.current.state.playing).toBe(true);
+  await act(async () => {
+    done();
+  });
+  // 次の話の先頭で止まる: 再生を押せば、そこから読む。
+  expect(result.current.state).toMatchObject({
+    chapterIndex: 3,
+    paragraphIndex: 0,
+    playing: false,
+  });
+});
+
 it("waits for the current paragraph to finish when the sleep deadline passes", async () => {
   jest.useFakeTimers();
   const { result } = await setup();
@@ -539,6 +567,8 @@ it("persists the reading position and settings after a delay", async () => {
     chapterIndex: 1,
     keepAwake: false,
     pageSound: true,
+    autoNext: true,
+    authorNotes: false,
     paragraphIndex: 0,
     rate: 1,
     pitch: 1,
@@ -1005,6 +1035,7 @@ it("passes over the paragraphs a rule matched over paragraphs leaves unread, in 
     assign: jest.fn(),
     setEnabled: jest.fn(),
     setSystemEnabled: jest.fn(),
+    replace: jest.fn(),
     dictionary: {
       ...emptyDictionary,
       common: [

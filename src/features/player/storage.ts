@@ -22,6 +22,10 @@ export interface SavedPlayback {
   keepAwake?: boolean;
   /** ページめくりの音。false と保存されていない限りオン。 */
   pageSound?: boolean;
+  /** 連続再生。false と保存されていない限りオン。 */
+  autoNext?: boolean;
+  /** 前書きと後書きを読む。true と保存されていない限りオフ。 */
+  authorNotes?: boolean;
 }
 
 /**

@@ -25,6 +25,8 @@ interface ReadAloud {
   /** 段落が始まるときに読む: 新しいルールは次の段落から効く。 */
   dictionary: RefObject<Dictionary>;
   timer: RefObject<SleepTimer>;
+  /** 連続再生: オフなら、話の終わりで止まる。 */
+  autoNext: RefObject<boolean>;
   /** 読み上げが別の章へ進んだときに呼ばれる（`usePageTurn`）。 */
   onChapterTurn: () => void;
   change: (update: SetStateAction<PlaybackState>) => void;
@@ -51,6 +53,7 @@ export function useReadAloud({
   generation,
   dictionary,
   timer,
+  autoNext,
   onChapterTurn,
   change,
   setSleepTimer,
@@ -87,7 +90,10 @@ export function useReadAloud({
       );
       change((current) => ({ ...current, playing: false }));
     }
-    /** 次の段落へ進む。終わりかタイマーなら止まる。 */
+    /**
+     * 次の段落へ進む。本の終わりかタイマーなら止まる。連続再生がオフなら
+     * 話の終わりでも止まり、読む位置は次の話の先頭に進める。
+     */
     function advance() {
       const next = moveToSpoken(
         { rules: dictionary.current, brackets },
@@ -104,13 +110,16 @@ export function useReadAloud({
       if (timerReached || !next) {
         setSleepTimer(null);
       }
-      if (next && next.chapterIndex !== state.chapterIndex) {
+      const turns = Boolean(next) && next?.chapterIndex !== state.chapterIndex;
+      const chapterEnd = turns && !autoNext.current;
+      // めくる音は、読み続けるときだけ。
+      if (turns && !chapterEnd && !timerReached) {
         onChapterTurn();
       }
       change({
         ...state,
         ...next,
-        playing: Boolean(next) && !timerReached,
+        playing: Boolean(next) && !timerReached && !chapterEnd,
       });
     }
     async function speak() {
@@ -212,6 +221,7 @@ export function useReadAloud({
     generation,
     dictionary,
     timer,
+    autoNext,
     onChapterTurn,
     change,
     setSleepTimer,

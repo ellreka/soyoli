@@ -9,6 +9,8 @@ import {
   rowModifiers,
 } from "@/components/NativeList";
 import { colors } from "@/constants/theme";
+import { AboutSettings } from "@/features/about/AboutSettings";
+import { BackupSettings } from "@/features/backup/BackupSettings";
 import { useDictionary } from "@/features/dictionary/Dictionary";
 import { voiceName } from "@/features/player/AudioSettings";
 import { bracketKinds } from "@/features/speech/brackets";
@@ -30,8 +32,15 @@ function description(text: string) {
  * すべてここにあり、リーダーのシートからも同じ設定に届く。
  */
 export default function SettingsScreen() {
-  const { settings, voices, loadVoices, setPageSound, setKeepAwake } =
-    usePlayback();
+  const {
+    settings,
+    voices,
+    loadVoices,
+    setPageSound,
+    setKeepAwake,
+    setAutoNext,
+    setAuthorNotes,
+  } = usePlayback();
   const { dictionary } = useDictionary();
   // 選ばれた声の名前。端末の既定の声なら、一覧は要らない。
   const named = settings.voice === undefined || voices.length > 0;
@@ -96,6 +105,44 @@ export default function SettingsScreen() {
             読み上げ中は画面を消さない
           </ListItem>
         </NativeListGroup>
+        <NativeListGroup title="再生">
+          <ListItem
+            testID="settings-auto-next"
+            colors={rowColors}
+            modifiers={rowModifiers}
+            supportingText={description(
+              "話を読み終えたら、次の話を続けて読みます",
+            )}
+            trailing=<ListSwitch
+              testID="settings-auto-next-switch"
+              value={settings.autoNext}
+              onValueChange={setAutoNext}
+            />
+            onPress={() => {
+              setAutoNext(!settings.autoNext);
+            }}
+          >
+            連続再生
+          </ListItem>
+          <ListItem
+            testID="settings-author-notes"
+            colors={rowColors}
+            modifiers={rowModifiers}
+            supportingText={description(
+              "Web小説の前書きと後書きも読みます。次に取得する話から変わります",
+            )}
+            trailing=<ListSwitch
+              testID="settings-author-notes-switch"
+              value={settings.authorNotes}
+              onValueChange={setAuthorNotes}
+            />
+            onPress={() => {
+              setAuthorNotes(!settings.authorNotes);
+            }}
+          >
+            前書き・後書きを読む
+          </ListItem>
+        </NativeListGroup>
         <NativeListGroup title="辞書">
           <ListItem
             testID="settings-dictionary"
@@ -130,6 +177,8 @@ export default function SettingsScreen() {
             ページをめくる音
           </ListItem>
         </NativeListGroup>
+        <BackupSettings />
+        <AboutSettings />
       </NativeList>
     </SettingsPage>
   );
