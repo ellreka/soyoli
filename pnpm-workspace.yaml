@@ -8,3 +8,7 @@ minimumReleaseAgeExclude:
   - "@oxlint-tsgolint/win32-arm64@7.0.2006"
   - "@oxlint-tsgolint/win32-x64@7.0.2006"
   - oxlint-tsgolint@7.0.2006
+
+# 依存を足すときは、範囲（^ や ~）ではなく入ったバージョンそのものを package.json に書く
+saveExact: true
+savePrefix: ""

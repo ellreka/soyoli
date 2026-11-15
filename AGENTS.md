@@ -62,6 +62,7 @@ src/
 - **`playback.state` は何をどこで読むか、`playback.settings` はどう読むか。** 速度・高さ・声・カッコの声を変えると、読み上げ中の段落をやり直す。`keepAwake`・`pageSound`・`autoNext`・`authorNotes` はやり直してはならない。
 - **バックアップのファイルも、保存したファイルと同じく形は永遠。** 入るのは辞書・音声設定・Web 小説のメタ情報と読みかけの位置だけ（`backup/backup.ts`）。読み戻すときは、端末のファイルと同じ検証を通す。
 - **依存を変えたら、ライセンスの一覧を作り直す。** `assets/licenses.json` は `scripts/licenses.mjs` が書く生成物で、手で編集しない。載るのはアプリに入るものだけで、スクリプトは iOS と Android のバンドルを書き出して調べる（1 分ほどかかる）。ネイティブ側だけが入れるライブラリは `scripts/native-licenses.json` に持つ（これも生成物）: Expo や React Native を上げた、ネイティブのライブラリを足したときは、`npx expo prebuild` のあと `pnpm licenses:native`、続けて `pnpm licenses:update` を実行する。ライブラリではない素材（音など）は `scripts/licenses.mjs` の `extras` に足す。作り直し忘れはテストが落ちて知らせる。
+- **依存のバージョンは固定する。** `package.json` には範囲（`^`・`~`）ではなく、入れるバージョンそのものを書く（`pnpm-workspace.yaml` の `saveExact`）。`npx expo install` が `~` 付きで書いたら、その記号を外す。CI は `pnpm install --frozen-lockfile` で、lockfile のとおりにだけ入れる。GitHub Actions の action も同じで、ワークフローには完全なタグ（`@v7.0.1`）を書き、コミットは `.github/workflows/actions.lock` が固定する。これは生成物で、手で編集しない: `uses:` を足した・変えた後は `gh actions-lock` を実行する（`gh extension install github/gh-actions-lock`）。
 - **新しいサイト** は、`web/sites/` に `WebSite` を実装したファイルを 1 つ、`sites/index.ts` に項目を 1 つ、`books/book.ts` にその id と名前を足す。**新しいファイル形式** は、`books/import.ts` の `formats` に項目を 1 つ足す。
 - **Web 小説: 保存するのはメタ情報だけ。** 本文も目次も決して保存しない。保存する範囲を広げる前に確認すること。
 - **テスト:** 対象ごとのユニットテストは `src/__tests__/` に、画面を通すテストは `src/__tests__/app/` に置く（最初に `@/testing/app` を import する: これが偽物を用意する）。
@@ -77,6 +78,8 @@ src/
 
 アプリのビルド・署名・提出はクラウドの EAS で行い（`eas build`、`eas submit`）、OTA アップデートの配信も EAS で行う（`eas update`） — ローカルの Xcode や Android Studio は要らない。EAS CLI は、Bun のプロジェクトでは `bunx eas-cli <command>`、それ以外では `npx eas-cli@latest <command>` として実行する。ドキュメントの例にある素の `eas` は、これに読み替えること。
 ドキュメント: <https://docs.expo.dev/eas/index.md>
+
+Android は GitHub Actions でもビルドできる（`.github/workflows/build-android.yml`）: runner の上で `eas build --local` を実行し、署名の鍵は EAS から取る。手動で実行する（プロファイルを選ぶ）か、`v*` のタグを push すると `preview` の APK が Release に付く。リポジトリの Secret に `EXPO_TOKEN` が要る。EAS CLI の版はワークフローの `EAS_CLI_VERSION` で固定している。
 
 ## ルール
 
