@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "soyoli",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "ios": {
       "icon": {
         "light": "./assets/images/icon.png",
@@ -14,7 +14,7 @@
         "tinted": "./assets/images/icon-tinted.png"
       },
       "infoPlist": {
-        "UIBackgroundModes": ["audio", "audio"]
+        "UIBackgroundModes": ["audio"]
       },
       "bundleIdentifier": "com.ellreka.soyoli"
     },
