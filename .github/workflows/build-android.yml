@@ -1,0 +1,108 @@
+name: Build Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: eas.json のビルドプロファイル
+        type: choice
+        default: preview
+        options:
+          - preview
+          - development
+          - production
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: build-android-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  EAS_CLI_VERSION: 27.10.0
+  PROFILE: ${{ inputs.profile || 'preview' }}
+
+jobs:
+  build:
+    name: eas build --local
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      file: ${{ steps.output.outputs.file }}
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5.2.8
+
+      - name: pnpm のストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      - uses: actions/setup-java@v6.3.0
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v6.4.1
+
+      - name: 出力するファイルの名前を決める
+        id: output
+        run: |
+          ext=apk
+          if [ "$PROFILE" = production ]; then ext=aab; fi
+          echo "file=soyoli-$PROFILE-${GITHUB_REF_NAME//\//-}.$ext" >> "$GITHUB_OUTPUT"
+
+      - name: ビルド
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          OUTPUT: build/${{ steps.output.outputs.file }}
+        run: |
+          mkdir -p build
+          pnpm dlx "eas-cli@$EAS_CLI_VERSION" build \
+            --platform android \
+            --profile "$PROFILE" \
+            --local \
+            --non-interactive \
+            --output "$OUTPUT"
+
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: ${{ steps.output.outputs.file }}
+          path: build/${{ steps.output.outputs.file }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Release に添付
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8.0.2
+        with:
+          name: ${{ needs.build.outputs.file }}
+
+      - name: Release を作る
+        env:
+          GH_TOKEN: ${{ github.token }}
+          FILE: ${{ needs.build.outputs.file }}
+        run: gh release create "$GITHUB_REF_NAME" "$FILE" --repo "$GITHUB_REPOSITORY" --generate-notes
