@@ -97,6 +97,16 @@ export type Book = {
   chapters: Chapter[];
 };
 
+/**
+ * 画面に出す、作品の出どころの名前。小説家になろうの名前は出さない: 運営
+ * 会社の商標ガイドラインは、事前の承諾のない商標の使用を原則として禁じて
+ * いる（<https://hinaproject.co.jp/company/trademark/>）。その作品は、名前の
+ * 代わりにアドレスで見分けられる。
+ */
+export function sourceName(source: BookSource): string | undefined {
+  return source === "narou" ? undefined : sourceLabels[source];
+}
+
 /** 端末に保存したファイルではなく、サイトから読む作品。 */
 export function isWebNovel(book: Book): book is Book & { source: WebSource } {
   return book.source !== "file";

@@ -5,7 +5,7 @@ import { NativeButton } from "@/components/NativeButton";
 import { NativeTextField } from "@/components/NativeTextField";
 import { Screen, Section } from "@/components/Screen";
 import { colors } from "@/constants/theme";
-import { sourceLabels } from "@/features/books/book";
+import { sourceName } from "@/features/books/book";
 import { useLibrary } from "@/features/library/Library";
 import { displayUrl } from "@/features/web/browser";
 import { workUrlOf } from "@/features/web/sites";
@@ -114,7 +114,9 @@ export default function DictionarySetScreen() {
                     </Text>
                     <Text style={styles.userDetail} numberOfLines={1}>
                       {book
-                        ? sourceLabels[book.source]
+                        ? // 名前を出さないサイトの作品は、アドレスで見分ける。
+                          (sourceName(book.source) ??
+                          (url ? displayUrl(url) : ""))
                         : [
                             "本棚にない作品",
                             title && url ? displayUrl(url) : "",

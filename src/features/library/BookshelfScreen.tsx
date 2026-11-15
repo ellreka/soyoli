@@ -20,7 +20,7 @@ import { usePlayback } from "@/features/player/Playback";
 import { displayUrl } from "@/features/web/browser";
 import { openInBrowser } from "@/features/web/openBrowser";
 import { BookCover } from "./BookCover";
-import { isWebNovel, sourceLabels, type Book } from "@/features/books/book";
+import { isWebNovel, sourceName, type Book } from "@/features/books/book";
 import { byDay, type HistoryItem } from "./history";
 import { useLibrary } from "./Library";
 import { lastReadChapter } from "./savedWorks";
@@ -159,7 +159,7 @@ function ShelfRow({ book, onMenu }: WorkProps) {
       leading=<BookCover book={book} compact revision={revision} />
       details={[
         // サイトは名前を出す価値がある。ファイル由来であることには、ない。
-        [book.author, isWebNovel(book) ? sourceLabels[book.source] : ""]
+        [book.author, isWebNovel(book) ? sourceName(book.source) : ""]
           .filter(Boolean)
           .join(" · "),
         ...(episode ? [episode.title] : []),
@@ -176,7 +176,7 @@ function HistoryRow({ book, onMenu }: WorkProps) {
       book={book}
       onMenu={onMenu}
       details={[
-        [sourceLabels[book.source], episode?.title].filter(Boolean).join(" · "),
+        [sourceName(book.source), episode?.title].filter(Boolean).join(" · "),
       ]}
       trailing={
         isBookmarked(book.id) ? (
@@ -255,9 +255,10 @@ export default function BookshelfScreen() {
     const web = isWebNovel(book);
     const episode = web ? lastReadChapter(book, lastRead) : undefined;
     const url = episode?.url ?? book.url;
+    const site = web ? sourceName(book.source) : undefined;
     return [
       ...(book.author ? [{ label: "著者", value: book.author }] : []),
-      ...(web ? [{ label: "サイト", value: sourceLabels[book.source] }] : []),
+      ...(site ? [{ label: "サイト", value: site }] : []),
       ...(episode ? [{ label: "読んでいる話", value: episode.title }] : []),
       ...(web && url
         ? [{ label: "URL", value: displayUrl(url), copy: url }]

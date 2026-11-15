@@ -264,6 +264,11 @@ function tocPageUrl(like: string, workId: string, page: number): string {
  * 小説家になろうと、その成人向けサイト（ノクターン、ムーンライト、
  * ミッドナイト: すべて `novel18.` にある）。マークアップも作品コードも
  * 共通。目次はページ分けされ、1 ページに 100 話。
+ *
+ * アイコンは持たせない（`listing` がないので、表紙にもミニプレーヤーにも
+ * 出ない）。名前も画面に出さない（`books/book.ts` の `sourceName`）。運営
+ * 会社の商標ガイドラインは、事前の承諾のない商標の使用を原則として禁じて
+ * いる: <https://hinaproject.co.jp/company/trademark/>
  */
 export const narou: WebSite = {
   id: "narou",

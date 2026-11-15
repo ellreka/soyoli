@@ -87,6 +87,31 @@ it("copies the source URL and opens web novels in the browser from the menu", as
   ).toBeOnTheScreen();
 });
 
+it("shows no site icon for a novel from Narou", async () => {
+  seed({
+    ...book,
+    id: "narou-n1234ab",
+    source: "narou",
+    title: "Web作品",
+    url: "https://ncode.syosetu.com/n1234ab/2/",
+    chapters: [
+      {
+        id: "2",
+        title: "第二話",
+        content: [{ type: "text", text: "Webの本文。" }],
+      },
+    ],
+  });
+  await renderRouter(routes, { initialUrl: "/reader?id=narou-n1234ab" });
+  await screen.findByTestId("viewer-player");
+  await fireEvent.press(
+    screen.getByRole("button", { name: "ビューアーを閉じる" }),
+  );
+  // なろうのアイコンは、承諾なしには出さない: ミニプレーヤーは記号を出す。
+  expect(await screen.findByTestId("mini-player")).toBeOnTheScreen();
+  expect(screen.queryByTestId("mini-player-thumbnail")).toBeNull();
+});
+
 it("opens the page of the episode being read, even when the browser was left on it", async () => {
   seed({
     ...book,

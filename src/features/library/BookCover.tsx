@@ -2,7 +2,7 @@ import { Image, StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/constants/theme";
 import { listedSites } from "@/features/web/sites";
-import { isWebNovel, sourceLabels, type Book } from "@/features/books/book";
+import { isWebNovel, sourceName, type Book } from "@/features/books/book";
 
 /** サイト名の上で、カードに入るだけの行数。 */
 const titleLines = 7;
@@ -85,11 +85,11 @@ export function BookCover({
           >
             {book.title}
           </Text>
-          {isWebNovel(book) && (
+          {isWebNovel(book) && sourceName(book.source) && (
             <View style={styles.foot}>
               <SiteIcon book={book} />
               <Text style={styles.source} numberOfLines={1}>
-                {sourceLabels[book.source]}
+                {sourceName(book.source)}
               </Text>
             </View>
           )}

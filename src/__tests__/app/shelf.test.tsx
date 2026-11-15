@@ -233,7 +233,7 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
   expect(screen.getByRole("header", { name: "今日" })).toBeOnTheScreen();
   expect(
     within(screen.getByRole("link", { name: "Web作品を開く" })).getByText(
-      "小説家になろう · 第二話　出会い",
+      "第二話　出会い",
     ),
   ).toBeOnTheScreen();
   await fireEvent.press(
@@ -427,15 +427,12 @@ it("lists the history by day, newest first, and forgets one work or all of them"
   expect(screen.getByTestId("action-site")).toBeOnTheScreen();
   // メニューは作品が何であるかを表で示す。アドレスはコピーできる。
   const table = within(screen.getByTestId("action-sheet-details"));
-  for (const cell of [
-    "著者",
-    "作者名",
-    "サイト",
-    "小説家になろう",
-    "読んでいる話",
-  ]) {
+  for (const cell of ["著者", "作者名", "読んでいる話"]) {
     expect(table.getByText(cell)).toBeOnTheScreen();
   }
+  // なろうの名前は、承諾なしには出さない: サイトの行そのものがない。
+  expect(table.queryByText("サイト")).toBeNull();
+  expect(screen.queryByText(/なろう/)).toBeNull();
   expect(table.getByText("第二話")).toBeOnTheScreen();
   expect(table.getByText("ncode.syosetu.com/n0002aa/2")).toBeOnTheScreen();
   await fireEvent.press(table.getByRole("button", { name: "URLをコピー" }));
