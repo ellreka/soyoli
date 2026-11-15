@@ -83,6 +83,7 @@ Android は GitHub Actions でもビルドできる（`.github/workflows/build-a
 
 ## ルール
 
+- **開発用のビルドは別のアプリ。** `app.config.ts` が `app.json` を土台にして、`APP_VARIANT=development` のときだけ名前（`Soyoli(dev)`）・ID（`com.ellreka.soyoli.dev`）・URL スキーム（`soyoli-dev`）を変える。本番と同じ端末に並べて入れるためである。この変数は `eas.json` の `development` と、`pnpm start`・`pnpm android`・`pnpm ios` が立てる。どのビルドにも同じ設定は `app.json` に書く。ローカルの `android/`・`ios/` は作ったときの ID のままなので、切り替えたら `npx expo prebuild --clean` で作り直す。
 - `ios/` と `android/` のディレクトリがない場合、それらは生成される（Continuous Native Generation）。手で作ったり編集したりしてはならない — ネイティブの挙動は `app.json` と config plugin で設定する。
 - Expo Go には、同梱されているネイティブモジュールしか入っていない。ネイティブコードを含むライブラリを足したら、アプリには development build が必要になる: ローカルなら `npx expo run:ios|android`、または `eas build --profile development`。
 - サードパーティのライブラリより、推奨されている Expo のモジュールを優先する。依存を足す前に、使えるスキルも確認すること。ドキュメント: <https://docs.expo.dev/versions/latest/index.md>
