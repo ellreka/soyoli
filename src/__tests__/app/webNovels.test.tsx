@@ -87,6 +87,80 @@ it("copies the source URL and opens web novels in the browser from the menu", as
   ).toBeOnTheScreen();
 });
 
+it("opens the page of the episode being read, even when the browser was left on it", async () => {
+  seed({
+    ...book,
+    id: "narou-n1234ab",
+    source: "narou",
+    title: "Web作品",
+    url: "https://ncode.syosetu.com/n1234ab/2/",
+    chapters: [
+      {
+        id: "2",
+        title: "第二話",
+        url: "https://ncode.syosetu.com/n1234ab/2/",
+        content: [{ type: "text", text: "Webの本文。" }],
+      },
+      {
+        id: "3",
+        title: "第三話",
+        url: "https://ncode.syosetu.com/n1234ab/3/",
+        content: [{ type: "text", text: "次の本文。" }],
+      },
+    ],
+  });
+  await renderRouter(routes, { initialUrl: "/reader?id=narou-n1234ab" });
+  await screen.findByTestId("viewer-player");
+  await fireEvent.press(screen.getByRole("button", { name: "本棚に追加" }));
+  await fireEvent.press(screen.getByRole("button", { name: "次の話" }));
+  expect(screen.getByRole("header", { name: "第三話" })).toBeOnTheScreen();
+  // 作品を開いたときのページではなく、読んでいる話のページ。
+  await fireEvent.press(screen.getByRole("button", { name: "その他" }));
+  await fireEvent.press(screen.getByRole("button", { name: "URLをコピー" }));
+  expect(Clipboard.setStringAsync).toHaveBeenLastCalledWith(
+    "https://ncode.syosetu.com/n1234ab/3/",
+  );
+  await fireEvent.press(screen.getByRole("button", { name: "その他" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "元のサイトで開く" }),
+  );
+  expect(screen).toHavePathname("/home/browse");
+  expect(
+    screen.getByLabelText(
+      "表示中のページ https://ncode.syosetu.com/n1234ab/3/",
+    ),
+  ).toBeOnTheScreen();
+  // 読者がブラウザの中で別のページへ進む。
+  await act(async () => {
+    screen.getByTestId("webview").props.onNavigationStateChange({
+      url: "https://ncode.syosetu.com/n1234ab/",
+      title: "",
+      loading: false,
+      canGoBack: true,
+      canGoForward: false,
+    });
+  });
+  expect(
+    screen.getByLabelText("表示中のページ https://ncode.syosetu.com/n1234ab/"),
+  ).toBeOnTheScreen();
+  // 同じ話からもう一度開くと、ブラウザはその話のページへ戻る。
+  await fireEvent.press(screen.getByLabelText("本棚"));
+  await fireEvent.press(
+    await screen.findByRole("link", { name: "Web作品を開く" }),
+  );
+  await screen.findByTestId("viewer-player");
+  await fireEvent.press(screen.getByRole("button", { name: "その他" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "元のサイトで開く" }),
+  );
+  expect(screen.getAllByTestId("webview")).toHaveLength(1);
+  expect(
+    screen.getByLabelText(
+      "表示中のページ https://ncode.syosetu.com/n1234ab/3/",
+    ),
+  ).toBeOnTheScreen();
+});
+
 it("loads the next episode on demand when the arrows cross chapters", async () => {
   seed({
     ...book,

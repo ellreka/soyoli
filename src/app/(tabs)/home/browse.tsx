@@ -16,15 +16,23 @@ function close(): void {
 }
 
 /**
- * 1 回分のブラウジング。表示するページ（`?url=`）を付けて開く。ホームタブの
+ * 1 回分のブラウジング。表示するページ（`?url=`）を付けて開く。`at` は
+ * `openInBrowser` が付ける、何回目に開いたかの目印。ホームタブの
  * 画面: タブバーとミニプレーヤーはその下に残る。
  */
 export default function BrowseScreen() {
-  const params = useLocalSearchParams<{ url?: string }>();
+  const params = useLocalSearchParams<{ url?: string; at?: string }>();
   const url = urlFromParam(params.url);
   const unavailable = Platform.OS === "web";
   if (!unavailable && url) {
-    return <BrowserView key={url} startUrl={url} onClose={close} />;
+    // 開き直すたびに（`at`）、同じページでも新しいブラウジングにする。
+    return (
+      <BrowserView
+        key={`${params.at ?? ""} ${url}`}
+        startUrl={url}
+        onClose={close}
+      />
+    );
   }
   return (
     <Screen title="ブラウザ">

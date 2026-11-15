@@ -173,7 +173,9 @@ export function Reader({ book, onClose }: ReaderProps) {
     menuParagraph === null
       ? undefined
       : state.chapters[state.chapterIndex]?.[menuParagraph]?.text.trim();
-  const url = book.url;
+  // 元のページは、いま開いている話のページ。話が自分のページを持たない
+  // ときだけ、作品のページにする。
+  const url = chapter?.url ?? book.url;
   const menuItems: MenuItem[] = [
     {
       // この作品に適用される読みと、作品が使う辞書。
