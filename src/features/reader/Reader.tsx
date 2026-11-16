@@ -1,4 +1,4 @@
-import { useDeferredValue, useState } from "react";
+import { useEffect, useState } from "react";
 import { NativeRow } from "@/components/NativeRow";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -85,8 +85,19 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
   const { settings } = useDisplay();
   // 章は何百もの段落でできていて、すべてを一度に描画する。ビューアーの
   // 最初の render からそれを外すと、ビューアーがすぐに現れ（スライドして
-  // 入ってき）て、本文は独立した render で後から続く。
-  const showText = useDeferredValue(true, false);
+  // 入ってき）て、本文は次のフレームの render で続く。それまでは読み込み中の
+  // 印を出す。useDeferredValue で遅らせてはならない: 起動後に最初に開いた
+  // とき、Android でリストの行の onLayout が一度も届かず、行の位置が
+  // わからないので、読む位置へ動かせなくなる。
+  const [showText, setShowText] = useState(false);
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setShowText(true);
+    });
+    return () => {
+      cancelAnimationFrame(frame);
+    };
+  }, []);
   // 1 回のタップで読み始めるか、1 回目で位置を動かして 2 回目で読み始めるか。
   const playOnTap = settings.playOn === "tap";
   const palette = themes[settings.theme];
@@ -111,7 +122,11 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
     );
   }
   if (!showText) {
-    return null;
+    return (
+      <View style={styles.status}>
+        <ActivityIndicator color={palette.text} />
+      </View>
+    );
   }
   return (
     <ChapterText

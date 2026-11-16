@@ -7,6 +7,7 @@ import {
   type ComponentRef,
 } from "react";
 import {
+  ActivityIndicator,
   Pressable,
   FlatList,
   useWindowDimensions,
@@ -327,205 +328,216 @@ export function ChapterText({
   const webHandlers = webEvents as Partial<FlatListProps<Row>> | undefined;
 
   return (
-    <FlatList
-      ref={list}
-      testID="chapter-content"
-      accessibilityLabel={chapter.title}
-      data={rows}
-      extraData={paragraphIndex}
-      // すべての段落を描画し、計測する。仮想化したリストを途中から始める
-      // （initialScrollIndex）と、上の行が見積もりのままになり、読む位置を
-      // 追ったときに違う文章や空白に着いてしまう。
-      // 章を丸ごと一度にマウントしている。とても長い章を開くのが
-      // 遅ければ、計測した高さを使ってリストをウィンドウ化すること。
-      initialNumToRender={rows.length}
-      maxToRenderPerBatch={rows.length}
-      windowSize={1000}
-      onLayout={({ nativeEvent }) => {
-        viewportHeight.current = nativeEvent.layout.height;
-        if (autoScroll && target.current === current) {
-          scrollToParagraph();
-        }
-      }}
-      onScrollBeginDrag={stopAutoScroll}
-      onScroll={({ nativeEvent }) => {
-        offset.current = nativeEvent.contentOffset.y;
-      }}
-      scrollEventThrottle={16}
-      CellRendererComponent={Cell}
-      {...webHandlers}
-      style={[
-        styles.list,
-        { backgroundColor: palette.background },
-        !placed && styles.unplaced,
-      ]}
-      contentContainerStyle={styles.content}
-      // 最後の段落の下の余白。章の終わりまで読む位置を追っても、内容の先への
-      // スクロールを求めないようにするため。
-      ListFooterComponent=<View style={{ height: window.height * 0.6 }} />
-      keyExtractor={(block, index) =>
-        block.kind === "text" ? `p${block.indices[0]}` : `i${index}`
-      }
-      onScrollToIndexFailed={({ index }) => {
-        if (!autoScroll || target.current !== index) {
-          return;
-        }
-        clearTimeout(retry.current);
-        retry.current = setTimeout(() => {
-          retry.current = undefined;
-          // 段落がまだ計測されていない: 少し後でやり直す。
-          // 3 秒であきらめる。その先は手動のスクロールに任せる。
-          if (target.current === index && retries.current < 30) {
-            retries.current += 1;
+    <>
+      {!placed && (
+        // 読む位置に置くまで本文は見せない。その間は読み込み中の印を出す。
+        <ActivityIndicator
+          color={palette.text}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <FlatList
+        ref={list}
+        testID="chapter-content"
+        accessibilityLabel={chapter.title}
+        data={rows}
+        extraData={paragraphIndex}
+        // すべての段落を描画し、計測する。仮想化したリストを途中から始める
+        // （initialScrollIndex）と、上の行が見積もりのままになり、読む位置を
+        // 追ったときに違う文章や空白に着いてしまう。
+        // 章を丸ごと一度にマウントしている。とても長い章を開くのが
+        // 遅ければ、計測した高さを使ってリストをウィンドウ化すること。
+        initialNumToRender={rows.length}
+        maxToRenderPerBatch={rows.length}
+        windowSize={1000}
+        onLayout={({ nativeEvent }) => {
+          viewportHeight.current = nativeEvent.layout.height;
+          if (autoScroll && target.current === current) {
             scrollToParagraph();
           }
-        }, 100);
-      }}
-      renderItem={({ item }) => {
-        if (item.kind === "image") {
-          return (
-            <Illustration
-              uri={item.uri}
-              alt={item.alt}
-              color={palette.dimmed}
-            />
-          );
+        }}
+        onScrollBeginDrag={stopAutoScroll}
+        onScroll={({ nativeEvent }) => {
+          offset.current = nativeEvent.contentOffset.y;
+        }}
+        scrollEventThrottle={16}
+        CellRendererComponent={Cell}
+        {...webHandlers}
+        style={[
+          styles.list,
+          { backgroundColor: palette.background },
+          !placed && styles.unplaced,
+        ]}
+        contentContainerStyle={styles.content}
+        // 最後の段落の下の余白。章の終わりまで読む位置を追っても、内容の先への
+        // スクロールを求めないようにするため。
+        ListFooterComponent=<View style={{ height: window.height * 0.6 }} />
+        keyExtractor={(block, index) =>
+          block.kind === "text" ? `p${block.indices[0]}` : `i${index}`
         }
-        return (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={item.indices
-              .map((index) => paragraphs[index].text)
-              .join("")}
-            accessibilityHint={
-              onPlay
-                ? "タップで読み上げ位置を移動、ダブルタップで再生"
-                : "タップした段落から再生"
+        onScrollToIndexFailed={({ index }) => {
+          if (!autoScroll || target.current !== index) {
+            return;
+          }
+          clearTimeout(retry.current);
+          retry.current = setTimeout(() => {
+            retry.current = undefined;
+            // 段落がまだ計測されていない: 少し後でやり直す。
+            // 3 秒であきらめる。その先は手動のスクロールに任せる。
+            if (target.current === index && retries.current < 30) {
+              retries.current += 1;
+              scrollToParagraph();
             }
-            onPress={(event) => {
-              const now = Date.now();
-              const row = item.indices[0];
-              const previous = lastTap.current;
-              if (
-                onPlay &&
-                previous?.row === row &&
-                now - previous.time < doubleTapMs
-              ) {
-                // 最初のタップがすでに段落を選んでいる。そこから始める。
-                lastTap.current = null;
-                onPlay(previous.paragraph);
-                return;
+          }, 100);
+        }}
+        renderItem={({ item }) => {
+          if (item.kind === "image") {
+            return (
+              <Illustration
+                uri={item.uri}
+                alt={item.alt}
+                color={palette.dimmed}
+              />
+            );
+          }
+          return (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={item.indices
+                .map((index) => paragraphs[index].text)
+                .join("")}
+              accessibilityHint={
+                onPlay
+                  ? "タップで読み上げ位置を移動、ダブルタップで再生"
+                  : "タップした段落から再生"
               }
-              const paragraph = paragraphAt(
-                item.indices,
-                paragraphTops.current,
-                event.nativeEvent.locationY,
-              );
-              lastTap.current = { time: now, row, paragraph };
-              onSelect(paragraph);
-            }}
-            onLongPress={
-              onMenu &&
-              ((event) => {
-                lastTap.current = null;
-                onMenu(
-                  paragraphAt(
-                    item.indices,
-                    paragraphTops.current,
-                    event.nativeEvent.locationY,
-                  ),
+              onPress={(event) => {
+                const now = Date.now();
+                const row = item.indices[0];
+                const previous = lastTap.current;
+                if (
+                  onPlay &&
+                  previous?.row === row &&
+                  now - previous.time < doubleTapMs
+                ) {
+                  // 最初のタップがすでに段落を選んでいる。そこから始める。
+                  lastTap.current = null;
+                  onPlay(previous.paragraph);
+                  return;
+                }
+                const paragraph = paragraphAt(
+                  item.indices,
+                  paragraphTops.current,
+                  event.nativeEvent.locationY,
                 );
-              })
-            }
-            // 指が触れている間、段落に色を付ける。タップ・ダブルタップ・長押しが
-            // どの段落に効くかが分かるようにするため。色はテーマの secondary の
-            // 色をごく薄く重ねたもので、読み上げのマーカーとははっきり違う。
-            // Android ではリップルとして出る。
-            android_ripple={{ color: `${palette.dimmed}40` }}
-            style={({ pressed }) => [
-              styles.row,
-              pressed &&
-                Platform.OS !== "android" && {
-                  backgroundColor: `${palette.dimmed}33`,
-                },
-              // 読み上げ中の段落は、文章がどれだけ短くても幅いっぱいに印が付く。
-              item.indices.includes(paragraphIndex) && {
-                backgroundColor: palette.marker,
-              },
-              // 印の付いた段落は色を保ち、代わりに薄くなる: グレーを重ねても
-              // マーカーの上では見えない。
-              pressed &&
-                Platform.OS !== "android" &&
-                item.indices.includes(paragraphIndex) &&
-                styles.pressedMarked,
-            ]}
-          >
-            <Text
-              accessibilityRole={item.heading ? "header" : undefined}
-              style={item.heading ? headingStyle : textStyle}
-              onLayout={() => {
-                if (
-                  Platform.OS === "web" &&
-                  autoScroll &&
-                  target.current === current &&
-                  item.indices.includes(paragraphIndex)
-                ) {
-                  scrollToParagraph();
-                }
+                lastTap.current = { time: now, row, paragraph };
+                onSelect(paragraph);
               }}
-              onTextLayout={({ nativeEvent: { lines } }) => {
-                // 折り返した行を数えておく。長い行でも今の段落を追えるようにするため。
-                let lineIndex = 0;
-                let lineStart = 0;
-                let paragraphStart = 0;
-                for (const index of item.indices) {
-                  while (
-                    lineIndex < lines.length - 1 &&
-                    lineStart + lines[lineIndex].text.length <= paragraphStart
-                  ) {
-                    lineStart += lines[lineIndex++].text.length;
-                  }
-                  paragraphTops.current.set(
-                    index,
-                    (lines[lineIndex]?.y ?? 0) + 2,
+              onLongPress={
+                onMenu &&
+                ((event) => {
+                  lastTap.current = null;
+                  onMenu(
+                    paragraphAt(
+                      item.indices,
+                      paragraphTops.current,
+                      event.nativeEvent.locationY,
+                    ),
                   );
-                  paragraphStart += renderedLength(paragraphs[index]);
-                }
-                if (
-                  autoScroll &&
-                  target.current === current &&
-                  item.indices.includes(paragraphIndex)
-                ) {
-                  scrollToParagraph();
-                }
-                if (!placed && item.indices.includes(paragraphIndex)) {
-                  // 上のスクロールが反映された後で。
-                  requestAnimationFrame(() => {
-                    setPlaced(true);
-                  });
-                }
-              }}
+                })
+              }
+              // 指が触れている間、段落に色を付ける。タップ・ダブルタップ・長押しが
+              // どの段落に効くかが分かるようにするため。色はテーマの secondary の
+              // 色をごく薄く重ねたもので、読み上げのマーカーとははっきり違う。
+              // Android ではリップルとして出る。
+              android_ripple={{ color: `${palette.dimmed}40` }}
+              style={({ pressed }) => [
+                styles.row,
+                pressed &&
+                  Platform.OS !== "android" && {
+                    backgroundColor: `${palette.dimmed}33`,
+                  },
+                // 読み上げ中の段落は、文章がどれだけ短くても幅いっぱいに印が付く。
+                item.indices.includes(paragraphIndex) && {
+                  backgroundColor: palette.marker,
+                },
+                // 印の付いた段落は色を保ち、代わりに薄くなる: グレーを重ねても
+                // マーカーの上では見えない。
+                pressed &&
+                  Platform.OS !== "android" &&
+                  item.indices.includes(paragraphIndex) &&
+                  styles.pressedMarked,
+              ]}
             >
-              {item.indices.map((index) => (
-                <Text
-                  key={index}
-                  ref={index === paragraphIndex ? currentText : undefined}
-                  testID={
-                    index === paragraphIndex ? "current-paragraph" : undefined
+              <Text
+                accessibilityRole={item.heading ? "header" : undefined}
+                style={item.heading ? headingStyle : textStyle}
+                onLayout={() => {
+                  if (
+                    Platform.OS === "web" &&
+                    autoScroll &&
+                    target.current === current &&
+                    item.indices.includes(paragraphIndex)
+                  ) {
+                    scrollToParagraph();
                   }
-                  style={[index < paragraphIndex && { color: palette.dimmed }]}
-                >
-                  {renderRuby(
-                    paragraphs[index],
-                    item.heading ? rubyLooks.heading : rubyLooks.text,
-                  )}
-                </Text>
-              ))}
-            </Text>
-          </Pressable>
-        );
-      }}
-    />
+                }}
+                onTextLayout={({ nativeEvent: { lines } }) => {
+                  // 折り返した行を数えておく。長い行でも今の段落を追えるようにするため。
+                  let lineIndex = 0;
+                  let lineStart = 0;
+                  let paragraphStart = 0;
+                  for (const index of item.indices) {
+                    while (
+                      lineIndex < lines.length - 1 &&
+                      lineStart + lines[lineIndex].text.length <= paragraphStart
+                    ) {
+                      lineStart += lines[lineIndex++].text.length;
+                    }
+                    paragraphTops.current.set(
+                      index,
+                      (lines[lineIndex]?.y ?? 0) + 2,
+                    );
+                    paragraphStart += renderedLength(paragraphs[index]);
+                  }
+                  if (
+                    autoScroll &&
+                    target.current === current &&
+                    item.indices.includes(paragraphIndex)
+                  ) {
+                    scrollToParagraph();
+                  }
+                  if (!placed && item.indices.includes(paragraphIndex)) {
+                    // 上のスクロールが反映された後で。
+                    requestAnimationFrame(() => {
+                      setPlaced(true);
+                    });
+                  }
+                }}
+              >
+                {item.indices.map((index) => (
+                  <Text
+                    key={index}
+                    ref={index === paragraphIndex ? currentText : undefined}
+                    testID={
+                      index === paragraphIndex ? "current-paragraph" : undefined
+                    }
+                    style={[
+                      index < paragraphIndex && { color: palette.dimmed },
+                    ]}
+                  >
+                    {renderRuby(
+                      paragraphs[index],
+                      item.heading ? rubyLooks.heading : rubyLooks.text,
+                    )}
+                  </Text>
+                ))}
+              </Text>
+            </Pressable>
+          );
+        }}
+      />
+    </>
   );
 }
 

@@ -12,7 +12,7 @@ import {
 
 it("registers a reading from a long-pressed paragraph into the work's own dictionary, made on the spot", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await fireEvent(chapterText("最初の本文。"), "longPress", {
     nativeEvent: {},
   });
@@ -68,7 +68,7 @@ it("registers a reading from a long-pressed paragraph into the work's own dictio
 it("lists the readings that apply to a work from the reader's menu", async () => {
   jest.mocked(loadDictionary).mockReturnValue(savedDictionary);
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   await fireEvent.press(screen.getByRole("button", { name: "読み方辞書" }));
   expect(screen).toHavePathname("/work-dictionary");
@@ -111,7 +111,7 @@ it("chooses the dictionary a work uses from the reader's menu, sharing another w
     assigned: { "narou-n1": "s1" },
   });
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   // EPUB にもメニューがある: 辞書の選択が入っている。
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   await fireEvent.press(screen.getByRole("button", { name: "読み方辞書" }));

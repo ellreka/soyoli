@@ -24,6 +24,7 @@ it("has one book entry point and always displays the player alongside the chapte
   );
   expect(screen).toHavePathname("/reader");
   expect(screen.getByRole("header", { name: "はじまり" })).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("最初の本文。")).toBeOnTheScreen();
   expect(screen.getByTestId("viewer-player")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "再生" })).toBeOnTheScreen();
@@ -51,6 +52,7 @@ it("uses the same integrated viewer for normalized Web content", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=web-novel" });
   expect(await screen.findByText("Web小説")).toBeOnTheScreen();
   expect(screen.getByTestId("viewer-player")).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("最初の本文。")).toBeOnTheScreen();
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
@@ -63,6 +65,7 @@ it("changes playback settings inside the viewer and returns there from the mini 
   await fireEvent.press(
     await screen.findByRole("link", { name: "サンプル作品を開く" }),
   );
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(screen.getByRole("button", { name: "再生" }));
   expect(Speech.speak).toHaveBeenLastCalledWith(
     "最初の本文。",
@@ -165,7 +168,7 @@ it("changes playback settings inside the viewer and returns there from the mini 
   const calls = jest.mocked(Speech.speak).mock.calls.length;
   await fireEvent.press(screen.getByRole("link", { name: "ビューアーを開く" }));
   expect(screen).toHavePathname("/reader");
-  expect(screen.getByTestId("chapter-content")).toBeOnTheScreen();
+  expect(await screen.findByTestId("chapter-content")).toBeOnTheScreen();
   expect(screen.getByTestId("viewer-player")).toBeOnTheScreen();
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "最初の本文。",
@@ -180,6 +183,7 @@ it("changes playback settings inside the viewer and returns there from the mini 
 it("updates the displayed chapter when playback advances and reopens the same shared position", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   await seek(90);
   await fireEvent.press(screen.getByRole("button", { name: "再生" }));
   const options = jest.mocked(Speech.speak).mock.calls.at(-1)![1]!;
@@ -195,7 +199,7 @@ it("updates the displayed chapter when playback advances and reopens the same sh
     screen.getByRole("link", { name: "サンプル作品を開く" }),
   );
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
-  expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
+  expect(await screen.findByTestId("current-paragraph")).toHaveTextContent(
     "次の本文。",
   );
 });
@@ -217,7 +221,7 @@ it("keeps image-only chapters viewable with the player present", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   expect(await screen.findByRole("header", { name: "口絵" })).toBeOnTheScreen();
   expect(
-    within(screen.getByTestId("chapter-content")).getByLabelText("表紙"),
+    within(await screen.findByTestId("chapter-content")).getByLabelText("表紙"),
   ).toHaveProp("source", { uri: "data:image/png;base64,YQ==" });
   expect(screen.getByTestId("viewer-player")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "再生" })).toBeDisabled();
@@ -231,7 +235,7 @@ it("keeps image-only chapters viewable with the player present", async () => {
 
 it("changes font size, line spacing and theme from the reader settings and keeps them", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   // 既定値: 黒テーマで 17pt。
   const paragraph = () => chapterText("最初の本文。").parent;
   expect(paragraph()).toHaveStyle({ fontSize: 17, lineHeight: 33 });
@@ -271,6 +275,7 @@ it("changes font size, line spacing and theme from the reader settings and keeps
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
   await fireEvent.press(screen.getByRole("link", { name: "ビューアーを開く" }));
+  await screen.findByTestId("chapter-content");
   expect(paragraph()).toHaveStyle({ fontSize: 21 });
 });
 
@@ -279,7 +284,7 @@ it("restores saved display settings and ignores unknown values", async () => {
     .mocked(loadDisplay)
     .mockReturnValue({ fontSize: "xlarge", lineHeight: 3, theme: "sepia" });
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   expect(chapterText("最初の本文。").parent).toHaveStyle({
     fontSize: 25,
     // 不正な行の高さは既定の比率に戻される。
@@ -294,7 +299,7 @@ it("moves on a tap, plays on a double tap, and can be set to play on a single ta
   let now = 1_000;
   const clock = jest.spyOn(Date, "now").mockImplementation(() => now);
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await seek(90);
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "もう一つの文。",
@@ -359,7 +364,7 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
     ],
   });
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   const follow = { name: "読み上げ位置に戻る" };
   // 追従は最初からオン。戻すボタンは、オフになって初めて出る。
   expect(screen.queryByRole("button", follow)).toBeNull();
@@ -412,7 +417,7 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
 
 it("opens the TOC from its header button; a book without a source page has no way back to one in its menu", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   // EPUB の本には元のページがない: メニューにそこへ戻る手段は出ない。
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   expect(screen.queryByRole("button", { name: "元のサイトで開く" })).toBeNull();
@@ -424,7 +429,7 @@ it("opens the TOC from its header button; a book without a source page has no wa
 
 it("closes the viewer from the title, like the arrow next to it", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(screen.getByRole("header", { name: "はじまり" }));
   expect(screen).toHavePathname("/");
   expect(screen.queryByTestId("player-sheet")).toBeNull();
@@ -432,7 +437,7 @@ it("closes the viewer from the title, like the arrow next to it", async () => {
 
 it("uses native half/full sheet heights", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(screen.getByRole("button", { name: "目次" }));
   expect(jest.mocked(BottomSheet).mock.calls.at(-1)?.[0]).toMatchObject({
     isPresented: true,
@@ -446,7 +451,7 @@ it("uses native half/full sheet heights", async () => {
 
 it("offers actions for a paragraph on a long press", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await seek(90);
   await fireEvent(chapterText("最初の本文。"), "longPress", {
     nativeEvent: {},

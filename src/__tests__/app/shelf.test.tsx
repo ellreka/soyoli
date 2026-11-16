@@ -148,7 +148,7 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
       }) as unknown as Promise<Response>,
   );
   await renderRouter(routes, { initialUrl: "/reader?id=narou-n1234ab" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   const work = {
     id: "narou-n1234ab",
     source: "narou",
@@ -268,6 +268,7 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   await fireEvent.press(tile);
   expect(openSavedFile).toHaveBeenCalledWith("novel.epub");
   expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("最初の本文。")).toBeOnTheScreen();
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
@@ -275,7 +276,7 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   await fireEvent.press(
     screen.getByRole("link", { name: "取り込んだ作品を開く" }),
   );
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   expect(openSavedFile).toHaveBeenCalledTimes(1);
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
@@ -505,7 +506,7 @@ it("keeps the shelf in the order the works were opened, across both kinds and ac
   await fireEvent.press(
     screen.getByRole("link", { name: "サンプル作品を開く" }),
   );
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
@@ -524,7 +525,7 @@ it("keeps the shelf in the order the works were opened, across both kinds and ac
 
 it("shows no bookmark button for EPUBs, which are always on the shelf", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
-  await screen.findByTestId("viewer-player");
+  await screen.findByTestId("chapter-content");
   expect(screen.queryByRole("button", { name: "本棚に追加" })).toBeNull();
   expect(screen.queryByRole("button", { name: "本棚から削除" })).toBeNull();
 });
