@@ -7,7 +7,6 @@ import { router } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
-import { Pressable } from "@/components/Pressable";
 import { Screen, Section } from "@/components/Screen";
 import { colors } from "@/constants/theme";
 import { useImportFile } from "@/features/library/useImportFile";
@@ -80,42 +79,43 @@ function SiteRow({ site }: { site: ListedSite }) {
     openInBrowser(site.url);
   }
   return (
-    <View style={styles.site}>
-      <Pressable
-        accessible={false}
-        importantForAccessibility="no"
-        onPress={open}
-        style={styles.siteIcon}
-      >
-        {failed ? (
-          <Icon name="globe" size={18} color={colors.secondary} />
-        ) : (
-          <Image
-            testID={`site-icon-${displayUrl(site.url)}`}
-            source={{ uri: site.iconUrl }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-            onError={() => {
-              setFailed(true);
-            }}
-          />
-        )}
-      </Pressable>
-      <NativeRow
-        title={site.name}
-        detail={displayUrl(site.url)}
-        accessibilityLabel={`${site.name}を開く`}
-        onPress={open}
-        action={{
-          label: "ランキング",
-          accessibilityLabel: `${site.name}のランキング`,
-          variant: "outlined",
-          onPress: () => {
-            openInBrowser(site.rankingUrl);
-          },
-        }}
-      />
-    </View>
+    <NativeRow
+      title={site.name}
+      detail={displayUrl(site.url)}
+      accessibilityLabel={`${site.name}を開く`}
+      onPress={open}
+      // アイコンは行の一部: そこを押しても行が押される。
+      leading={
+        <View
+          accessible={false}
+          importantForAccessibility="no"
+          pointerEvents="none"
+          style={styles.siteIcon}
+        >
+          {failed ? (
+            <Icon name="globe" size={18} color={colors.secondary} />
+          ) : (
+            <Image
+              testID={`site-icon-${displayUrl(site.url)}`}
+              source={{ uri: site.iconUrl }}
+              style={StyleSheet.absoluteFill}
+              resizeMode="cover"
+              onError={() => {
+                setFailed(true);
+              }}
+            />
+          )}
+        </View>
+      }
+      action={{
+        label: "ランキング",
+        accessibilityLabel: `${site.name}のランキング`,
+        variant: "outlined",
+        onPress: () => {
+          openInBrowser(site.rankingUrl);
+        },
+      }}
+    />
   );
 }
 
@@ -155,13 +155,6 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  // 行は、アイコンの後ろに自分の 16pt の余白を保つ。
-  site: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingLeft: 16,
-  },
   siteIcon: {
     width: 32,
     height: 32,

@@ -1,3 +1,4 @@
+import type { ReactElement } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { colors } from "@/constants/theme";
@@ -29,6 +30,11 @@ export interface NativeRowProps {
    */
   selected?: boolean;
   /**
+   * 行頭に置く絵（サイトのアイコンなど）。行の一部で、自分では押下を
+   * 受けない: そこを押しても行が押され、リップルも行の全体に出る。
+   */
+  leading?: ReactElement;
+  /**
    * 行末の、行の中にあるボタン: 行は 1 つの面のまま（リップルはボタンの下を
    * 走る）で、ボタンを押しても行は押されない。
    */
@@ -46,6 +52,7 @@ export function NativeRow({
   accessibilityLabel,
   disabled = false,
   selected,
+  leading,
   action,
   onPress,
 }: NativeRowProps) {
@@ -61,6 +68,7 @@ export function NativeRow({
       style={[styles.row, disabled && styles.disabled]}
     >
       {selected !== undefined && <SelectionMark selected={selected} />}
+      {leading}
       <View style={styles.text}>
         <Text style={styles.title}>{title}</Text>
         {detail !== undefined && <Text style={styles.detail}>{detail}</Text>}

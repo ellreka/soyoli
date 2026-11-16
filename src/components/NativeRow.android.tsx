@@ -1,4 +1,4 @@
-import { Host, ListItem, Row } from "@expo/ui";
+import { Host, ListItem, RNHostView, Row } from "@expo/ui";
 
 import { colors } from "@/constants/theme";
 import { ComposeButton } from "./NativeButton.android";
@@ -31,9 +31,13 @@ export function NativeRow({
   detail,
   disabled,
   selected,
+  leading,
   action,
   onPress,
 }: NativeRowProps) {
+  // 行頭の絵は React Native のビューで、行のスロットの中に載せる: 行の
+  // 一部になるので、そこを押しても行のリップルが全体に広がる。
+  const picture = leading && <RNHostView matchContents>{leading}</RNHostView>;
   return (
     <Host matchContents={vertical} colorScheme="dark" style={stretch}>
       <ListItem
@@ -41,7 +45,9 @@ export function NativeRow({
         // 選択肢の行は最初からリングを持つ: Compose は一度外したスロットを
         // 戻さない。
         leading={
-          selected === undefined ? undefined : (
+          selected === undefined ? (
+            picture
+          ) : (
             <SelectionMark selected={selected} />
           )
         }
