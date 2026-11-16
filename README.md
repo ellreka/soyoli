@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/images/icon.png" width="120" alt="Soyoli のアイコン">
+</p>
+
 # Soyoli
 
 Web 小説や EPUB などを読み上げながら読むためのアプリ
