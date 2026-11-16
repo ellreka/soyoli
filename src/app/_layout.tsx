@@ -9,6 +9,7 @@ import { RestoreLastBook } from "@/features/loading/RestoreLastBook";
 import { ChapterLoaderProvider } from "@/features/loading/ChapterLoader";
 import { DisplayProvider } from "@/features/reader/Display";
 import { colors } from "@/constants/theme";
+import { useBackToBackground } from "@/lib/appTask";
 
 export const unstable_settings = { anchor: "(tabs)" };
 
@@ -25,6 +26,7 @@ const theme = {
 };
 
 export default function RootLayout() {
+  useBackToBackground();
   return (
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
