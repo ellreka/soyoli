@@ -1,0 +1,78 @@
+diff --git a/android/src/main/java/expo/modules/speech/SpeechModule.kt b/android/src/main/java/expo/modules/speech/SpeechModule.kt
+index af958a56b6e8710dcb5f1a26144270347447ed8c..e2241e02f5634e5594537a76020653d6dd21337d 100644
+--- a/android/src/main/java/expo/modules/speech/SpeechModule.kt
++++ b/android/src/main/java/expo/modules/speech/SpeechModule.kt
+@@ -39,7 +39,17 @@ class SpeechModule : Module() {
+     }
+ 
+     OnActivityDestroys {
+-      textToSpeech.shutdown()
++      // The process can outlive the activity. Forget the engine that was shut down, so the next
++      // call connects to a new one instead of using a dead instance that fails silently
++      // ("not bound to TTS engine").
++      synchronized(this@SpeechModule) {
++        _textToSpeech?.shutdown()
++        _textToSpeech = null
++        ttsState = TtsState.PENDING
++        delayedUtterances.clear()
++        delayedGetVoices.forEach { it.resolve(emptyList<VoiceRecord>()) }
++        delayedGetVoices.clear()
++      }
+     }
+ 
+     AsyncFunction<Boolean>("isSpeaking") {
+@@ -150,13 +160,22 @@ class SpeechModule : Module() {
+ 
+   // TextToSpeech object related code
+ 
+-  private val textToSpeech: TextToSpeech by lazy {
++  private val textToSpeech: TextToSpeech
++    get() = synchronized(this) { _textToSpeech ?: createTextToSpeech() }
++
++  private fun createTextToSpeech(): TextToSpeech {
++    var created: TextToSpeech? = null
+     val newTtsInstance = TextToSpeech(appContext.reactContext) { status: Int ->
+       if (status == TextToSpeech.SUCCESS) {
+         // synchronize because in some cases this runs on another thread and _textToSpeech is null
+         synchronized(this@SpeechModule) {
++          // An engine that was shut down before it finished connecting is no longer ours
++          val current = _textToSpeech
++          if (current == null || current !== created) {
++            return@synchronized
++          }
+           ttsState = TtsState.READY
+-          _textToSpeech!!.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
++          current.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+ 
+             override fun onStart(utteranceId: String) {
+               sendEvent(speakingStartedEvent, idToMap(utteranceId))
+@@ -186,20 +205,28 @@ class SpeechModule : Module() {
+           for ((id, text, options) in delayedUtterances) {
+             speakOut(id, text, options)
+           }
++          delayedUtterances.clear()
+           for (promise in delayedGetVoices) {
+             promise.resolve(getVoices())
+           }
++          delayedGetVoices.clear()
+         }
+       } else {
+         synchronized(this@SpeechModule) {
++          if (created != null && _textToSpeech !== created) {
++            return@synchronized
++          }
+           ttsState = TtsState.FAILED
+           delayedGetVoices.forEach { it.resolve(emptyList<VoiceRecord>()) }
++          delayedGetVoices.clear()
+           delayedUtterances.forEach { sendEvent(speakingErrorEvent, idToMap(it.id)) }
++          delayedUtterances.clear()
+         }
+       }
+     }
++    created = newTtsInstance
+     _textToSpeech = newTtsInstance
+-    newTtsInstance
++    return newTtsInstance
+   }
+ 
+   // Helpers

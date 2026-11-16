@@ -36,6 +36,7 @@ src/
   app/            ルートだけ: 各ファイルは features/ の画面を re-export する
   components/     アプリのことを知らない UI 部品（プラットフォーム別: .ios/.android）
   lib/jsonFile.ts JSON ファイルを起動をまたいで保存する唯一の方法
+  lib/appTask.ts  Android: 最初の画面での「戻る」は、アプリを閉じずに裏へ回す（modules/app-task）
   testing/app.tsx 端末を偽物にしたアプリ全体。src/__tests__/app 用
   features/
     books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで
@@ -84,6 +85,7 @@ Android は GitHub Actions でもビルドできる（`.github/workflows/build-a
 ## ルール
 
 - **開発用のビルドは別のアプリ。** `app.config.ts` が `app.json` を土台にして、`APP_VARIANT=development` のときだけ名前（`Soyoli(dev)`）・ID（`com.ellreka.soyoli.dev`）・URL スキーム（`soyoli-dev`）を変える。本番と同じ端末に並べて入れるためである。この変数は `eas.json` の `development` と、`pnpm start`・`pnpm android`・`pnpm ios` が立てる。どのビルドにも同じ設定は `app.json` に書く。ローカルの `android/`・`ios/` は作ったときの ID のままなので、切り替えたら `npx expo prebuild --clean` で作り直す。
+- **`expo-speech` にはパッチを当てている**（`patches/`、`pnpm-workspace.yaml` の `patchedDependencies`）。Android で画面（Activity）が壊された後も、プロセスが残っていれば読み上げエンジンにつなぎ直すためである: 元のコードは切れた接続を使い続け、再生しても声が出ない。Expo はモジュールをビルド済みの部品で組み込むので、パッチが効くように `package.json` の `expo.autolinking.android.buildFromSource` でソースからビルドさせている。`expo-speech` を上げるときは、パッチを作り直し、本体で直っていれば両方とも外す。
 - `ios/` と `android/` のディレクトリがない場合、それらは生成される（Continuous Native Generation）。手で作ったり編集したりしてはならない — ネイティブの挙動は `app.json` と config plugin で設定する。
 - Expo Go には、同梱されているネイティブモジュールしか入っていない。ネイティブコードを含むライブラリを足したら、アプリには development build が必要になる: ローカルなら `npx expo run:ios|android`、または `eas build --profile development`。
 - サードパーティのライブラリより、推奨されている Expo のモジュールを優先する。依存を足す前に、使えるスキルも確認すること。ドキュメント: <https://docs.expo.dev/versions/latest/index.md>

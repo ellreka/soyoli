@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  expo-speech@58.0.3: c3a6f487d3c462c3e7a8c99da2d7c88f84db79d6be3262c39b9c20f9fb97910b
+
 importers:
 
   .:
@@ -64,7 +67,7 @@ importers:
         version: 58.0.30(f19d6fafd1ffc7a8e7994ec8012f9dfb)
       expo-speech:
         specifier: 58.0.3
-        version: 58.0.3(expo@58.0.23)
+        version: 58.0.3(patch_hash=c3a6f487d3c462c3e7a8c99da2d7c88f84db79d6be3262c39b9c20f9fb97910b)(expo@58.0.23)
       expo-splash-screen:
         specifier: 58.0.13
         version: 58.0.13(expo@58.0.23)(supports-color@8.1.1)(typescript@6.0.3)
@@ -7311,7 +7314,7 @@ snapshots:
 
   expo-server@58.0.6: {}
 
-  expo-speech@58.0.3(expo@58.0.23):
+  expo-speech@58.0.3(patch_hash=c3a6f487d3c462c3e7a8c99da2d7c88f84db79d6be3262c39b9c20f9fb97910b)(expo@58.0.23):
     dependencies:
       expo: 58.0.23(881544c512cfb2be589a9c4a388b4f69)
 
