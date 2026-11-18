@@ -62,6 +62,29 @@ export function awaitsText(chapter: Chapter | undefined): boolean {
   );
 }
 
+/**
+ * 取り込み直した本 `next` に、開いている同じ本 `open` がもう読んだページの
+ * 本文を引き継ぐ。取り込み直した本は、ページごとに読む章（PDF）の本文を
+ * まだ持っていない: そのまま開いている本と入れ替えると、読み上げている章の
+ * 本文が消えて、読み上げが途切れる。引き継ぐのは、同じ章（id とページの
+ * 範囲が同じ）だけ。
+ */
+export function withLoadedPages(next: Book, open: Book): Book {
+  return {
+    ...next,
+    chapters: next.chapters.map((chapter) => {
+      const loaded = open.chapters.find((item) => item.id === chapter.id);
+      return chapter.pages &&
+        chapter.content.length === 0 &&
+        loaded?.content.length &&
+        loaded.pages?.from === chapter.pages.from &&
+        loaded.pages.count === chapter.pages.count
+        ? { ...chapter, content: loaded.content }
+        : chapter;
+    }),
+  };
+}
+
 /** Web 小説を読むサイト（それぞれが `web/sites` の 1 項目）。 */
 export const webSources = ["narou", "kakuyomu", "hameln"] as const;
 export type WebSource = (typeof webSources)[number];

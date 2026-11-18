@@ -20,11 +20,17 @@ import {
   openSavedFile,
   savedFileBooks,
 } from "@/features/books/import";
+import { readPdfPages } from "@/features/books/pdf";
 import { loadLibrary, saveLibrary } from "@/features/library/libraryStorage";
 import { noticeMs } from "@/features/library/ImportFiles";
 import { loadShelfOrder, saveShelfOrder } from "@/features/library/shelfOrder";
 import { saveShelfView } from "@/features/library/shelfView";
 import { loadPlayback } from "@/features/player/storage";
+
+jest.mock("@/features/books/pdf", () => ({
+  ...jest.requireActual("@/features/books/pdf"),
+  readPdfPages: jest.fn(),
+}));
 
 it("shows the shelf as a grid or a list, without counts or filters, and continues from the mini player", async () => {
   await renderRouter(routes);
@@ -536,6 +542,90 @@ it("takes in files from Home onto the shelf without opening them or stopping wha
   expect(
     screen.getByRole("link", { name: "取り込んだ作品2を開く" }),
   ).toBeOnTheScreen();
+});
+
+it("keeps reading a file that is taken in again while it is open, from its new copy", async () => {
+  const pages = (from: number) => ({ from, count: 10 });
+  const paper: Book = {
+    ...book,
+    id: "paper.pdf",
+    title: "論文",
+    file: "old.pdf",
+    chapters: [
+      {
+        id: "p1",
+        title: "1–10 ページ",
+        pages: pages(0),
+        content: [{ type: "text", text: "読んだページの本文。" }],
+      },
+      { id: "p2", title: "11–20 ページ", pages: pages(10), content: [] },
+    ],
+  };
+  seed(paper);
+  // 取り込み直した本は新しいファイルを指し、ページの本文はまだない。
+  jest.mocked(importFiles).mockResolvedValue({
+    added: [
+      {
+        ...paper,
+        file: "new.pdf",
+        chapters: paper.chapters.map((chapter) => ({
+          ...chapter,
+          content: [],
+        })),
+      },
+    ],
+    failed: [],
+  });
+  jest
+    .mocked(readPdfPages)
+    .mockResolvedValue([{ type: "text", text: "次のページの本文。" }]);
+  await renderRouter(routes);
+  await fireEvent.press(
+    await screen.findByRole("link", { name: "論文を開く" }),
+  );
+  await screen.findByTestId("chapter-content");
+  await fireEvent.press(screen.getByRole("button", { name: "再生" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "ビューアーを閉じる" }),
+  );
+  await fireEvent.press(screen.getByLabelText("ホーム"));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "ファイルを取り込む" }),
+  );
+  await screen.findByText("「論文」を本棚に追加しました");
+  // 読み上げは同じ段落で続く: 読んだ本文は引き継がれている。
+  await waitFor(() => {
+    expect(Speech.speak).toHaveBeenLastCalledWith(
+      "読んだページの本文。",
+      expect.anything(),
+    );
+  });
+  expect(
+    within(screen.getByTestId("mini-player")).getByRole("button", {
+      name: "一時停止",
+    }),
+  ).toBeOnTheScreen();
+  // 次の章のページは、新しいファイルから読む: 古いファイルはもうない。
+  const options = jest.mocked(Speech.speak).mock.calls.at(-1)![1]!;
+  await act(async () => {
+    (options.onDone as () => void)();
+  });
+  await waitFor(() => {
+    expect(readPdfPages).toHaveBeenCalledWith("file:///books/new.pdf", {
+      from: 10,
+      count: 10,
+    });
+  });
+  expect(readPdfPages).not.toHaveBeenCalledWith(
+    "file:///books/old.pdf",
+    expect.anything(),
+  );
+  await waitFor(() => {
+    expect(Speech.speak).toHaveBeenLastCalledWith(
+      "次のページの本文。",
+      expect.anything(),
+    );
+  });
 });
 
 it("tells of a file taken in above the mini player, until it is closed or a while has passed", async () => {

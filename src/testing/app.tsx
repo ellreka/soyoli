@@ -198,7 +198,10 @@ jest.mock("@/features/backup/backupFile", () => ({
   saveBackup: jest.fn(() => Promise.resolve({ canceled: true })),
   pickBackup: jest.fn(() => Promise.resolve({ canceled: true })),
 }));
-jest.mock("@/features/books/fileStore", () => ({ removeFile: jest.fn() }));
+jest.mock("@/features/books/fileStore", () => ({
+  removeFile: jest.fn(),
+  fileUri: (name: string) => `file:///books/${name}`,
+}));
 jest.mock("@/features/library/shelfOrder", () => ({
   ...jest.requireActual("@/features/library/shelfOrder"),
   loadShelfOrder: jest.fn(() => []),

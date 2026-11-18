@@ -32,9 +32,11 @@ export default function RootLayout() {
     <ThemeProvider value={theme}>
       <StatusBar style="light" />
       <LibraryProvider>
-        <ImportFilesProvider>
-          <DictionaryProvider>
-            <PlaybackProvider>
+        <DictionaryProvider>
+          <PlaybackProvider>
+            {/* プレーヤーの内側: 開いている本を取り込み直したら、プレーヤーが
+                持つ本も替える。 */}
+            <ImportFilesProvider>
               <ChapterLoaderProvider>
                 <DisplayProvider>
                   <RestoreLastBook />
@@ -102,9 +104,9 @@ export default function RootLayout() {
                   </Stack>
                 </DisplayProvider>
               </ChapterLoaderProvider>
-            </PlaybackProvider>
-          </DictionaryProvider>
-        </ImportFilesProvider>
+            </ImportFilesProvider>
+          </PlaybackProvider>
+        </DictionaryProvider>
       </LibraryProvider>
     </ThemeProvider>
   );

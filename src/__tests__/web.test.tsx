@@ -51,11 +51,11 @@ jest.mock("expo-speech", () => ({
 function Layout() {
   return (
     <LibraryProvider>
-      <ImportFilesProvider>
-        <PlaybackProvider>
+      <PlaybackProvider>
+        <ImportFilesProvider>
           <Slot />
-        </PlaybackProvider>
-      </ImportFilesProvider>
+        </ImportFilesProvider>
+      </PlaybackProvider>
     </LibraryProvider>
   );
 }

@@ -6,7 +6,9 @@ import {
   type ReactNode,
 } from "react";
 
+import { withLoadedPages } from "@/features/books/book";
 import { importFiles, type ImportResult } from "@/features/books/import";
+import { useOpenBook } from "@/features/loading/useOpenBook";
 import { useLibrary } from "./Library";
 
 /** 取り込みの知らせが、自分で消えるまでの時間。 */
@@ -39,6 +41,8 @@ const ImportFilesContext = createContext<ImportFilesValue | null>(null);
  */
 export function ImportFilesProvider({ children }: { children: ReactNode }) {
   const { addBook } = useLibrary();
+  // 取り込みは時間がかかる。開いている本は、終わったときのものを見る。
+  const open = useOpenBook();
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState<ImportFilesValue["progress"]>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
@@ -75,7 +79,15 @@ export function ImportFilesProvider({ children }: { children: ReactNode }) {
         if (imported) {
           // 本棚の先頭には、選んだ順に並ぶ。
           for (const book of imported.added.toReversed()) {
-            addBook(book);
+            const current = open.current();
+            if (current?.id === book.id) {
+              // 開いている本を取り込み直した: 保存してあったファイルは
+              // 消えたので、プレーヤーが持つ本も新しいファイルを指す
+              // ものに替える。読んだ本文は引き継ぎ、読み上げは続く。
+              open.replace(withLoadedPages(book, current));
+            } else {
+              addBook(book);
+            }
           }
           finish(imported);
         }
