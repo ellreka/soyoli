@@ -89,6 +89,8 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
   // 印を出す。useDeferredValue で遅らせてはならない: 起動後に最初に開いた
   // とき、Android でリストの行の onLayout が一度も届かず、行の位置が
   // わからないので、読む位置へ動かせなくなる。
+  // 話を移ったときも同じ（呼び出し側が話ごとに作り直す）: 題名と読み込み中の
+  // 印が先に出て、長い本文を組む間、押したボタンが効いていないように見えない。
   const [showText, setShowText] = useState(false);
   useEffect(() => {
     const frame = requestAnimationFrame(() => {
@@ -303,6 +305,9 @@ export function Reader({ book, onClose }: ReaderProps) {
           ]}
         >
           <ChapterBody
+            // 話ごとに作り直す: 話を移ると、まず読み込み中の印を出し、本文は
+            // 次のフレームで組む。長い話でも、ボタンを押してすぐ移ったと分かる。
+            key={chapter?.id}
             chapter={chapter}
             failed={failedChapter === chapter?.url}
             paragraphIndex={state.paragraphIndex}

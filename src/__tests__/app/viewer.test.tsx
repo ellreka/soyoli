@@ -33,7 +33,11 @@ it("has one book entry point and always displays the player alongside the chapte
   expect(screen.queryByRole("button", { name: "この章から聴く" })).toBeNull();
   expect(screen.getByRole("button", { name: "前の話" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "次の話" }));
+  // 話はすぐ移る: 題名が先に変わり、本文は次のフレームで組む。長い話でも、
+  // 押したボタンが効いていないように見えない。
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
+  expect(screen.queryByTestId("chapter-content")).toBeNull();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("次の本文。")).toBeOnTheScreen();
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "次の本文。",
@@ -177,6 +181,7 @@ it("changes playback settings inside the viewer and returns there from the mini 
   await fireEvent.press(screen.getByRole("button", { name: "目次" }));
   await fireEvent.press(screen.getByRole("radio", { name: "おわり" }));
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("次の本文。")).toBeOnTheScreen();
 });
 
@@ -191,6 +196,7 @@ it("updates the displayed chapter when playback advances and reopens the same sh
     (options.onDone as () => void)();
   });
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   expect(chapterText("次の本文。")).toBeOnTheScreen();
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
@@ -402,6 +408,7 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
   // 章が変わっても追従はオフのまま。
   expect(screen.getByRole("button", follow)).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "一時停止" })).toBeOnTheScreen();
+  await screen.findByTestId("chapter-content");
   await fireEvent.press(chapterText("次の本文。"));
   expect(Speech.speak).toHaveBeenLastCalledWith(
     "次の本文。",
