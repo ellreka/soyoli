@@ -2,16 +2,27 @@
 import { routes, savedDictionary } from "@/testing/app";
 
 import {
+  act,
   fireEvent,
   screen,
   waitFor,
   within,
 } from "@testing-library/react-native";
 import { renderRouter, testRouter } from "expo-router/testing-library";
+import { BackHandler } from "react-native";
 import * as Speech from "expo-speech";
 import { loadLibrary } from "@/features/library/libraryStorage";
 import { loadDictionary } from "@/features/dictionary/dictionaryStorage";
 import { loadPlayback } from "@/features/player/storage";
+
+// 端末にあるネイティブ側: アプリを裏へ回す。
+const mockMoveToBack = jest.fn(() => Promise.resolve(true));
+jest.mock("../../../modules/app-task/src/AppTaskModule", () => ({
+  __esModule: true,
+  default: { moveToBack: () => mockMoveToBack() },
+}));
+
+type BackHandlers = Parameters<typeof BackHandler.addEventListener>[1][];
 
 it("opens on the bookshelf, switches tabs, and returns through tab history", async () => {
   await renderRouter(routes);
@@ -293,3 +304,50 @@ it("nests the settings: a list of items, each opening its own page", async () =>
   // 設定のページでも、タブバーとタブはそのまま残る。
   expect(screen.getByLabelText("設定")).toBeSelected();
 });
+
+it.each([
+  ["after", (handlers: BackHandlers) => handlers.toReversed()],
+  ["before", (handlers: BackHandlers) => handlers],
+])(
+  "sends the app to the background on Back only where there is nothing to go back to, when navigation listens %s it",
+  async (_order, inOrder) => {
+    // Android の「戻る」を押したことにする: 受け口を順に呼び、どれかが true を
+    // 返したらそこで止まる。端末では後から登録したものが先に呼ばれるが、
+    // アプリの受け口とナビゲーションのどちらが後になるかは決まっていない。
+    const handlers: BackHandlers = [];
+    const listen = jest
+      .spyOn(BackHandler, "addEventListener")
+      .mockImplementation((_event, handler) => {
+        handlers.push(handler);
+        return {
+          remove: () => {
+            handlers.splice(handlers.indexOf(handler), 1);
+          },
+        };
+      });
+    const pressBack = () =>
+      act(async () => {
+        // SAFETY: 受ける側はイベントの中身を見ない。
+        inOrder(handlers).some((handler) => handler({} as never));
+      });
+    await renderRouter(routes);
+    await screen.findByRole("header", { name: "本棚" });
+    await fireEvent.press(screen.getByLabelText("設定"));
+    await fireEvent.press(
+      await screen.findByRole("button", { name: "音声設定" }),
+    );
+    expect(screen).toHavePathname("/settings/speed");
+    // 設定のページからは一覧へ、一覧からは前のタブへ戻る。アプリは開いたまま。
+    await pressBack();
+    expect(screen).toHavePathname("/settings");
+    await pressBack();
+    expect(screen).toHavePathname("/");
+    expect(mockMoveToBack).not.toHaveBeenCalled();
+    // 最初の画面には戻る先がない: 閉じずに、裏へ回す。
+    await pressBack();
+    expect(mockMoveToBack).toHaveBeenCalledTimes(1);
+    expect(screen).toHavePathname("/");
+    mockMoveToBack.mockClear();
+    listen.mockRestore();
+  },
+);

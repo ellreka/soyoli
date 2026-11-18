@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { useEffect } from "react";
 import { BackHandler } from "react-native";
 
@@ -9,8 +10,10 @@ import AppTask from "../../modules/app-task/src/AppTaskModule";
  * 読み上げを続ける。
  *
  * アプリの一番外側で一度だけ呼ぶこと。ハンドラは後から登録したものが先に
- * 呼ばれる: ここは最初に登録するので、画面を戻るもの（ナビゲーション、
- * ビューアー、ブラウザ）が誰も受け取らなかったときにだけ届く。
+ * 呼ばれるが、登録の順には頼らない: ナビゲーションより後に登録されると
+ * （画面のレイアウトは、ナビゲーションの入れ物より後に組まれることがある）、
+ * ここが先に呼ばれて、設定のページやタブの履歴を戻る「戻る」まで取って
+ * しまう。戻る先がある間は受け取らず、ナビゲーションに任せる。
  */
 export function useBackToBackground(): void {
   useEffect(() => {
@@ -22,6 +25,9 @@ export function useBackToBackground(): void {
     const subscription = BackHandler.addEventListener(
       "hardwareBackPress",
       () => {
+        if (router.canGoBack()) {
+          return false;
+        }
         native.moveToBack().catch(() => undefined);
         return true;
       },
