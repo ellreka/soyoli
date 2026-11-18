@@ -9,7 +9,7 @@ import {
   within,
 } from "@testing-library/react-native";
 import { renderRouter } from "expo-router/testing-library";
-import { Alert } from "react-native";
+import { Alert, BackHandler } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
 import { narouEpisodeHtml } from "@/__fixtures__/webPages";
@@ -374,6 +374,51 @@ it("keeps the volumes of one work as a single entry, and lists them when it is o
     screen.getByRole("link", { name: "銀河の旅 3を開く" }),
   ).toBeOnTheScreen();
   alert.mockRestore();
+});
+
+it("leaves Back to the other tabs while the volumes of a work are listed", async () => {
+  const volume = (number: number): Book => ({
+    ...book,
+    id: `galaxy-${number}.epub`,
+    title: `銀河の旅 ${number}`,
+    series: { name: "銀河の旅", position: number },
+  });
+  seed(volume(1), volume(2));
+  // Android の「戻る」を押したことにする: 後から登録したものが先に受け、
+  // どれかが true を返したらそこで止まる。
+  const handlers: Parameters<typeof BackHandler.addEventListener>[1][] = [];
+  const listen = jest
+    .spyOn(BackHandler, "addEventListener")
+    .mockImplementation((_event, handler) => {
+      handlers.push(handler);
+      return {
+        remove: () => {
+          handlers.splice(handlers.indexOf(handler), 1);
+        },
+      };
+    });
+  const pressBack = () =>
+    // SAFETY: 受ける側はイベントの中身を見ない。
+    handlers.toReversed().some((handler) => handler({} as never));
+  await renderRouter(routes);
+  const entry = { name: "銀河の旅の巻を見る" };
+  // 巻の一覧での「戻る」は、本棚へ戻す。
+  await fireEvent.press(await screen.findByRole("button", entry));
+  await act(async () => {
+    pressBack();
+  });
+  expect(screen.getByRole("header", { name: "本棚" })).toBeOnTheScreen();
+  // 巻の一覧を出したままほかのタブへ移ると、「戻る」はそのタブのもの:
+  // 隠れている本棚は取らず、前のタブ（巻の一覧のまま）へ戻る。
+  await fireEvent.press(screen.getByRole("button", entry));
+  await fireEvent.press(screen.getByLabelText("ホーム"));
+  expect(screen).toHavePathname("/home");
+  await act(async () => {
+    pressBack();
+  });
+  expect(screen).toHavePathname("/");
+  expect(screen.getByRole("header", { name: "銀河の旅" })).toBeOnTheScreen();
+  listen.mockRestore();
 });
 
 it("reads the shelf from the device again when it is pulled down", async () => {

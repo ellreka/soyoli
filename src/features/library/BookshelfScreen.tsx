@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { Link, useNavigation } from "expo-router";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Link, useFocusEffect, useNavigation } from "expo-router";
 import { Alert, BackHandler, StyleSheet, Text, View } from "react-native";
 
 import {
@@ -355,22 +355,26 @@ export default function BookshelfScreen() {
     .filter(isSeries)
     .find((item) => item.id === seriesId);
   const inSeries = series !== undefined;
-  useEffect(() => {
-    if (!inSeries) {
-      return undefined;
-    }
-    // Android の「戻る」は、巻の一覧から本棚へ戻す。
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        setSeriesId(null);
-        return true;
-      },
-    );
-    return () => {
-      subscription.remove();
-    };
-  }, [inSeries]);
+  // Android の「戻る」は、巻の一覧から本棚へ戻す。本棚のタブを見ている間
+  // だけ: ほかのタブに移っても本棚は残っているので、そこでの「戻る」を
+  // 取ってはならない。
+  useFocusEffect(
+    useCallback(() => {
+      if (!inSeries) {
+        return undefined;
+      }
+      const subscription = BackHandler.addEventListener(
+        "hardwareBackPress",
+        () => {
+          setSeriesId(null);
+          return true;
+        },
+      );
+      return () => {
+        subscription.remove();
+      };
+    }, [inSeries]),
+  );
   // 本棚のタブをもう一度押すと、ほかのタブと同じく最初のページに戻る。
   const navigation = useNavigation();
   useEffect(
