@@ -1,5 +1,5 @@
 import {
-  importFile,
+  importFiles,
   openSavedFile,
   savedFileBooks,
 } from "@/features/books/import";
@@ -90,7 +90,7 @@ jest.mock("expo-file-system", () => {
       const { name, bytes } = mockPicked;
       return Promise.resolve({
         canceled: false,
-        result: { name, bytes: () => Promise.resolve(bytes) },
+        result: [{ name, bytes: () => Promise.resolve(bytes) }],
       });
     }
   }
@@ -98,6 +98,18 @@ jest.mock("expo-file-system", () => {
 });
 
 const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
+
+/** ファイルを 1 つ取り込む: 入った作品を返し、入らなければその理由で投げる。 */
+async function importFile() {
+  const result = await importFiles();
+  if (!result) {
+    return null;
+  }
+  if (result.failed.length > 0) {
+    throw new Error(result.failed[0].message);
+  }
+  return result.added[0];
+}
 
 beforeEach(() => {
   mockDisk.clear();

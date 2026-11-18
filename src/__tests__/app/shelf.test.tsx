@@ -16,11 +16,12 @@ import { narouEpisodeHtml } from "@/__fixtures__/webPages";
 import type { Book } from "@/features/books/book";
 import { removeFile } from "@/features/books/fileStore";
 import {
-  importFile,
+  importFiles,
   openSavedFile,
   savedFileBooks,
 } from "@/features/books/import";
 import { loadLibrary, saveLibrary } from "@/features/library/libraryStorage";
+import { noticeMs } from "@/features/library/ImportFiles";
 import { loadShelfOrder, saveShelfOrder } from "@/features/library/shelfOrder";
 import { saveShelfView } from "@/features/library/shelfView";
 import { loadPlayback } from "@/features/player/storage";
@@ -28,7 +29,7 @@ import { loadPlayback } from "@/features/player/storage";
 it("shows the shelf as a grid or a list, without counts or filters, and continues from the mini player", async () => {
   await renderRouter(routes);
   const tile = await screen.findByRole("link", { name: "サンプル作品を開く" });
-  // まだ開いていない作品は、話の名前の位置に著者を出す。
+  // 書名の下は著者。
   expect(within(tile).getByText("サンプル著者")).toBeOnTheScreen();
   // まだ何も開いていない: 続きから読むものがない。
   expect(screen.queryByTestId("mini-player")).toBeNull();
@@ -308,6 +309,73 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   alert.mockRestore();
 });
 
+it("keeps the volumes of one work as a single entry, and lists them when it is opened", async () => {
+  const volume = (number: number): Book => ({
+    ...book,
+    id: `galaxy-${number}.epub`,
+    title: `銀河の旅 ${number}`,
+    series: { name: "銀河の旅", position: number },
+  });
+  // 書名が巻に見えても、シリーズを名乗らないファイルはまとめない。
+  const unnamed: Book = { ...book, id: "loose.epub", title: "銀河の旅 4" };
+  seed(volume(2), book, volume(1), volume(3), unnamed);
+  const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
+  await renderRouter(routes);
+  // 3 つの巻は 1 つにまとまり、ほかの作品はそのまま。
+  const entry = await screen.findByRole("button", {
+    name: "銀河の旅の巻を見る",
+  });
+  // 冊数は、重ねた表紙の隅に出る。
+  expect(within(entry).getByText("3")).toBeOnTheScreen();
+  expect(entry.props.accessibilityHint).toBe("3冊");
+  expect(within(entry).getByText("サンプル著者")).toBeOnTheScreen();
+  expect(screen.queryByRole("link", { name: "銀河の旅 1を開く" })).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "銀河の旅 4を開く" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("link", { name: "サンプル作品を開く" }),
+  ).toBeOnTheScreen();
+  // 押すと、その巻が巻の順に並ぶ。
+  await fireEvent.press(entry);
+  expect(screen.getByRole("header", { name: "銀河の旅" })).toBeOnTheScreen();
+  expect(screen.queryByRole("link", { name: "サンプル作品を開く" })).toBeNull();
+  expect(
+    screen.getAllByRole("link").map((link) => link.props.accessibilityLabel),
+  ).toEqual(["銀河の旅 1を開く", "銀河の旅 2を開く", "銀河の旅 3を開く"]);
+  // 本棚は隠れているだけで、作り直されない: スクロールした位置が残る。
+  const shelfScroll = screen.getByTestId("refreshable", {
+    includeHiddenElements: true,
+  });
+  // 戻るボタンで本棚に戻る。
+  await fireEvent.press(screen.getByRole("button", { name: "戻る" }));
+  expect(screen.getByTestId("refreshable")).toBe(shelfScroll);
+  expect(screen.getByRole("header", { name: "本棚" })).toBeOnTheScreen();
+  // 巻は 1 冊ずつ削除する。1 冊だけになった作品は、ふつうの作品に戻る。
+  await fireEvent.press(
+    screen.getByRole("button", { name: "銀河の旅の巻を見る" }),
+  );
+  for (const number of [1, 2]) {
+    await fireEvent(
+      screen.getByRole("link", { name: `銀河の旅 ${number}を開く` }),
+      "longPress",
+    );
+    await fireEvent.press(screen.getByTestId("action-unshelve"));
+    const buttons = alert.mock.calls.at(-1)![2]!;
+    await act(async () => {
+      buttons.find((button) => button.style === "destructive")!.onPress!();
+    });
+  }
+  expect(screen.getByRole("header", { name: "本棚" })).toBeOnTheScreen();
+  expect(
+    screen.queryByRole("button", { name: "銀河の旅の巻を見る" }),
+  ).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "銀河の旅 3を開く" }),
+  ).toBeOnTheScreen();
+  alert.mockRestore();
+});
+
 it("reads the shelf from the device again when it is pulled down", async () => {
   const kept: Book = {
     ...book,
@@ -361,30 +429,119 @@ it("says so when a kept file cannot be read", async () => {
   expect(screen).toHavePathname("/");
 });
 
-it("takes in a file from Home, opens it, and puts it on the shelf", async () => {
-  jest.mocked(importFile).mockResolvedValue({
+it("takes in files from Home onto the shelf without opening them or stopping what is being read", async () => {
+  const taken = (number: number): Book => ({
     ...book,
-    id: "novel.epub",
-    title: "取り込んだ作品",
-    file: "abc123.epub",
+    id: `novel-${number}.epub`,
+    title: `取り込んだ作品${number}`,
+    file: `abc${number}.epub`,
+    chapters: [],
   });
+  jest.mocked(importFiles).mockResolvedValue({
+    added: [taken(1), taken(2)],
+    failed: [
+      { name: "broken.epub", message: "ファイルを読み込めませんでした。" },
+    ],
+  });
+  jest
+    .mocked(openSavedFile)
+    .mockResolvedValue({ ...taken(2), chapters: book.chapters });
   await renderRouter(routes);
-  await screen.findByRole("link", { name: "サンプル作品を開く" });
+  // 別の作品を読み上げている。
+  await fireEvent.press(
+    await screen.findByRole("link", { name: "サンプル作品を開く" }),
+  );
+  await screen.findByTestId("chapter-content");
+  await fireEvent.press(screen.getByRole("button", { name: "再生" }));
+  await fireEvent.press(
+    screen.getByRole("button", { name: "ビューアーを閉じる" }),
+  );
+  const speaking = jest.mocked(Speech.speak).mock.calls.length;
+  const stopped = jest.mocked(Speech.stop).mock.calls.length;
   await fireEvent.press(screen.getByLabelText("ホーム"));
   await fireEvent.press(
     screen.getByRole("button", { name: "ファイルを取り込む" }),
   );
-  expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
-  expect(screen).toHavePathname("/reader");
-  // 取り込むときにすでに読んでいる: ファイルは読み直さない。
+  // 何冊でも一度に入る。ビューアーは開かず、読み上げも続く。
+  expect(await screen.findByText("2冊を本棚に追加しました")).toBeOnTheScreen();
+  expect(screen).toHavePathname("/home");
+  expect(screen.queryByTestId("viewer-player")).toBeNull();
+  expect(jest.mocked(Speech.stop).mock.calls.length).toBe(stopped);
+  expect(jest.mocked(Speech.speak).mock.calls.length).toBe(speaking);
+  expect(
+    within(screen.getByTestId("mini-player")).getByText("サンプル作品"),
+  ).toBeOnTheScreen();
+  // 読めなかったファイルは、名前と理由を出す。残りは取り込まれている。
+  expect(
+    screen.getByText("broken.epub: ファイルを読み込めませんでした。"),
+  ).toBeOnTheScreen();
+  // 知らせはミニプレーヤーの上にあり、ほかのタブでも見える。読めない
+  // ファイルがあったので、時間が経っても消えない。
+  const notice = within(screen.getByTestId("import-notice"));
+  expect(notice.getByText("1件は読み込めませんでした")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByLabelText("設定"));
+  expect(screen.getByTestId("import-notice")).toBeOnTheScreen();
+  // 何冊もあるときは、知らせから本棚へ行ける。知らせはそこで閉じる。
+  expect(openSavedFile).not.toHaveBeenCalled();
+  await fireEvent.press(screen.getByRole("button", { name: "本棚を開く" }));
+  expect(screen.queryByTestId("import-notice")).toBeNull();
+  expect(
+    screen.getByRole("link", { name: "取り込んだ作品1を開く" }),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByRole("link", { name: "取り込んだ作品2を開く" }),
+  ).toBeOnTheScreen();
+});
+
+it("tells of a file taken in above the mini player, until it is closed or a while has passed", async () => {
+  const taken: Book = {
+    ...book,
+    id: "novel.epub",
+    title: "取り込んだ作品",
+    file: "abc.epub",
+    chapters: [],
+  };
+  jest.mocked(importFiles).mockResolvedValue({ added: [taken], failed: [] });
+  jest
+    .mocked(openSavedFile)
+    .mockResolvedValue({ ...taken, chapters: book.chapters });
+  await renderRouter(routes);
+  await screen.findByRole("link", { name: "サンプル作品を開く" });
+  await fireEvent.press(screen.getByLabelText("ホーム"));
+  const take = async () => {
+    await fireEvent.press(
+      screen.getByRole("button", { name: "ファイルを取り込む" }),
+    );
+    await screen.findByText("「取り込んだ作品」を本棚に追加しました");
+  };
+  // バツで閉じる。
+  await take();
+  await fireEvent.press(screen.getByRole("button", { name: "知らせを閉じる" }));
+  expect(screen.queryByTestId("import-notice")).toBeNull();
+  // 放っておくと、自分で消える。
+  jest.useFakeTimers();
+  try {
+    await take();
+    await act(async () => {
+      jest.advanceTimersByTime(noticeMs - 1);
+    });
+    expect(screen.getByTestId("import-notice")).toBeOnTheScreen();
+    await act(async () => {
+      jest.advanceTimersByTime(1);
+    });
+    expect(screen.queryByTestId("import-notice")).toBeNull();
+  } finally {
+    jest.useRealTimers();
+  }
+  // 1 冊なら、知らせからそのまま開ける。本文は開いたときに読む。
+  await take();
   expect(openSavedFile).not.toHaveBeenCalled();
   await fireEvent.press(
-    screen.getByRole("button", { name: "ビューアーを閉じる" }),
+    screen.getByRole("button", { name: "取り込んだ作品を開く" }),
   );
-  await fireEvent.press(screen.getByLabelText("本棚"));
-  expect(
-    screen.getByRole("link", { name: "取り込んだ作品を開く" }),
-  ).toBeOnTheScreen();
+  expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
+  expect(openSavedFile).toHaveBeenCalledWith("novel.epub");
+  expect(screen.queryByTestId("import-notice")).toBeNull();
 });
 
 it("lists the history by day, newest first, and forgets one work or all of them", async () => {
@@ -562,6 +719,9 @@ it("brings saved web novels back at launch and continues from the mini player", 
   // 保存した作品は、同梱の本の隣に並ぶ。
   const tile = await screen.findByRole("link", { name: "Web作品を開く" });
   expect(within(tile).getByText("第二話　出会い")).toBeOnTheScreen();
+  // 著者は書名のすぐ下で、読みかけの話はその下の行: 話の題名が著者の
+  // 位置に入ることはない。
+  expect(within(tile).getByText("作者名")).toBeOnTheScreen();
   // ミニプレーヤーに戻っていて、ビューアーを開かなくても話が取得される。
   const mini = within(await screen.findByTestId("mini-player"));
   expect(mini.getByText("Web作品")).toBeOnTheScreen();

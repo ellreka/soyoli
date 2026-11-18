@@ -116,6 +116,10 @@ const symbols = {
     ios: "play.fill",
     android: import("@expo/material-symbols/play_arrow.xml"),
   }),
+  layers: UIIcon.select({
+    ios: "square.stack",
+    android: import("@expo/material-symbols/layers.xml"),
+  }),
   pause: UIIcon.select({
     ios: "pause.fill",
     android: import("@expo/material-symbols/pause.xml"),

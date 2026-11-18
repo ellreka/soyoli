@@ -28,7 +28,7 @@ import { pickBackup, saveBackup } from "@/features/backup/backupFile";
 import type { Book } from "@/features/books/book";
 import { removeFile } from "@/features/books/fileStore";
 import {
-  importFile,
+  importFiles,
   openSavedFile,
   savedFileBooks,
 } from "@/features/books/import";
@@ -191,7 +191,7 @@ jest.mock("@/features/library/libraryStorage", () => ({
 jest.mock("@/features/books/import", () => ({
   savedFileBooks: jest.fn(() => []),
   openSavedFile: jest.fn(),
-  importFile: jest.fn(),
+  importFiles: jest.fn(),
 }));
 jest.mock("@/features/about/version", () => ({ appVersion: () => "1.2.3" }));
 jest.mock("@/features/backup/backupFile", () => ({
@@ -337,7 +337,7 @@ beforeEach(() => {
   jest.mocked(savedFileBooks).mockReset();
   seed(book);
   jest.mocked(openSavedFile).mockReset();
-  jest.mocked(importFile).mockReset();
+  jest.mocked(importFiles).mockReset();
   jest.mocked(removeFile).mockClear();
   jest.mocked(saveBackup).mockReset().mockResolvedValue({ canceled: true });
   jest.mocked(pickBackup).mockReset().mockResolvedValue({ canceled: true });

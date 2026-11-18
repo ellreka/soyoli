@@ -1,6 +1,6 @@
 import { Directory, File, Paths } from "expo-file-system";
 
-import type { Book } from "./book";
+import { toBookSeries, type Book, type BookSeries } from "./book";
 
 /**
  * ファイルから取り込んで端末に保存した作品: ファイルそのもの、独立した
@@ -15,6 +15,8 @@ export interface SavedFile {
   /** ストアの中での名前。ストアの場所はインストールごとに変わりうる。 */
   file: string;
   cover?: string;
+  /** ファイルが名乗るシリーズ。これを保存する前に取り込んだ作品にはない。 */
+  series?: BookSeries;
   addedAt: number;
 }
 
@@ -38,10 +40,11 @@ function toSavedFile(value: unknown): SavedFile | null {
   if (!value || typeof value !== "object") {
     return null;
   }
-  const { id, title, author, file, cover, addedAt } = value as Record<
+  const { id, title, author, file, cover, series, addedAt } = value as Record<
     string,
     unknown
   >;
+  const kept = toBookSeries(series);
   if (!isText(id) || !isText(title) || !isStoreName(file)) {
     return null;
   }
@@ -51,6 +54,7 @@ function toSavedFile(value: unknown): SavedFile | null {
     author: typeof author === "string" ? author : "",
     file,
     ...(isStoreName(cover) ? { cover } : {}),
+    ...(kept ? { series: kept } : {}),
     addedAt: typeof addedAt === "number" ? addedAt : 0,
   };
 }
@@ -147,12 +151,32 @@ export function saveFile(
     author: book.author,
     file: file.name,
     ...(cover ? { cover } : {}),
+    ...(book.series ? { series: book.series } : {}),
     addedAt: Date.now(),
   };
   writeIndex([saved, ...files.filter((item) => item.id !== book.id)]);
   discard(previous?.file);
   discard(previous?.cover);
   return saved;
+}
+
+/**
+ * 保存した作品のシリーズを、ファイルを読み直して分かったものに合わせる。
+ * シリーズを保存するようになる前に取り込んだ作品は、開いたときにここで
+ * 追いつく。変わっていなければ何も書かない。
+ */
+export function keepSeries(id: string, series: BookSeries | undefined): void {
+  const files = loadFiles();
+  const saved = files.find((item) => item.id === id);
+  if (!saved || JSON.stringify(saved.series) === JSON.stringify(series)) {
+    return;
+  }
+  const { series: _old, ...rest } = saved;
+  writeIndex(
+    files.map((item) =>
+      item === saved ? { ...rest, ...(series ? { series } : {}) } : item,
+    ),
+  );
 }
 
 /** 保存した作品のファイルと表紙を削除し、記録からも消す。 */

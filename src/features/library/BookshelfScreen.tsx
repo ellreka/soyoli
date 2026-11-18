@@ -1,6 +1,6 @@
-import { useState, type ReactNode } from "react";
-import { Link } from "expo-router";
-import { Alert, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Link, useNavigation } from "expo-router";
+import { Alert, BackHandler, StyleSheet, Text, View } from "react-native";
 
 import {
   ActionSheet,
@@ -19,8 +19,9 @@ import { colors } from "@/constants/theme";
 import { usePlayback } from "@/features/player/Playback";
 import { displayUrl } from "@/features/web/browser";
 import { openInBrowser } from "@/features/web/openBrowser";
-import { BookCover } from "./BookCover";
+import { BookCover, SeriesCover } from "./BookCover";
 import { isWebNovel, sourceName, type Book } from "@/features/books/book";
+import { bySeries, isSeries, type Series } from "@/features/books/series";
 import { byDay, type HistoryItem } from "./history";
 import { useLibrary } from "./Library";
 import { lastReadChapter } from "./savedWorks";
@@ -37,12 +38,20 @@ const tabs: { key: Tab; label: string; name: string }[] = [
 const columns = 3;
 const menuHint = "長押しでメニューを開きます";
 
-function rows(books: Book[]): Book[][] {
-  const result: Book[][] = [];
-  for (let index = 0; index < books.length; index += columns) {
-    result.push(books.slice(index, index + columns));
+/** 本棚に並ぶもの: 作品か、同じ作品の巻をまとめたもの。 */
+type ShelfItem = Book | Series;
+
+function rows(items: ShelfItem[]): ShelfItem[][] {
+  const result: ShelfItem[][] = [];
+  for (let index = 0; index < items.length; index += columns) {
+    result.push(items.slice(index, index + columns));
   }
   return result;
+}
+
+/** まとまりの中身を、控えめな行に出す言葉。 */
+function volumeCount(series: Series): string {
+  return `${series.volumes.length}冊`;
 }
 
 /** Web 小説の中で読者がいる場所: 最後に読んだ話。 */
@@ -72,35 +81,117 @@ function BookTile({ book, onMenu }: WorkProps) {
         <Text style={styles.tileTitle} numberOfLines={2}>
           {book.title}
         </Text>
-        {/* 読みかけの場所。それができるまでは著者。 */}
-        <Text style={styles.tileDetail} numberOfLines={1}>
-          {episode?.title ?? book.author}
-        </Text>
+        {/* 書名の下は、どの作品でも著者。読みかけの話はその下の行に出す:
+        同じ位置に著者と話の題名が入ると、どちらなのか見分けられない。 */}
+        {book.author !== "" && (
+          <Text style={styles.tileDetail} numberOfLines={1}>
+            {book.author}
+          </Text>
+        )}
+        {episode && (
+          <Text style={styles.tileDetail} numberOfLines={1}>
+            {episode.title}
+          </Text>
+        )}
       </Pressable>
     </Link>
   );
 }
 
-function Grid({
-  books,
-  onMenu,
-}: {
-  books: Book[];
+interface SeriesProps {
+  series: Series;
+  /** 押すと、本棚がその巻の一覧に切り替わる。 */
+  onOpen: () => void;
+}
+
+/** まとめた作品のタイル: 表紙は最後に開いた巻のもの。 */
+function SeriesTile({ series, onOpen }: SeriesProps) {
+  const { revision } = useLibrary();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${series.title}の巻を見る`}
+      accessibilityHint={volumeCount(series)}
+      onPress={onOpen}
+      style={styles.tile}
+    >
+      {/* 冊数は表紙のバッジが出す。下の行は単体の作品と同じ: 高さがそろう。 */}
+      <SeriesCover
+        book={series.latest}
+        count={series.volumes.length}
+        revision={revision}
+      />
+      <Text style={styles.tileTitle} numberOfLines={2}>
+        {series.title}
+      </Text>
+      {series.author !== "" && (
+        <Text style={styles.tileDetail} numberOfLines={1}>
+          {series.author}
+        </Text>
+      )}
+    </Pressable>
+  );
+}
+
+/** まとめた作品を、リストの 1 行にしたもの。 */
+function SeriesRow({ series, onOpen }: SeriesProps) {
+  const { revision } = useLibrary();
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`${series.title}の巻を見る`}
+      onPress={onOpen}
+      style={styles.workRow}
+    >
+      <SeriesCover
+        book={series.latest}
+        count={series.volumes.length}
+        compact
+        revision={revision}
+      />
+      <View style={styles.workText}>
+        <Text style={styles.workTitle} numberOfLines={1}>
+          {series.title}
+        </Text>
+        <Text style={styles.workDetail} numberOfLines={1}>
+          {[series.author, volumeCount(series)].filter(Boolean).join(" · ")}
+        </Text>
+      </View>
+      <Icon name="chevron-right" size={16} color={colors.secondary} />
+    </Pressable>
+  );
+}
+
+interface ShelfItemsProps {
+  items: ShelfItem[];
   onMenu: (book: Book) => void;
-}) {
+  onOpenSeries: (series: Series) => void;
+}
+
+function Grid({ items, onMenu, onOpenSeries }: ShelfItemsProps) {
   return (
     <View style={styles.grid}>
-      {rows(books).map((row) => (
+      {rows(items).map((row) => (
         <View key={row[0].id} style={styles.gridRow}>
-          {row.map((book) => (
-            <BookTile
-              key={book.id}
-              book={book}
-              onMenu={() => {
-                onMenu(book);
-              }}
-            />
-          ))}
+          {row.map((item) =>
+            isSeries(item) ? (
+              <SeriesTile
+                key={item.id}
+                series={item}
+                onOpen={() => {
+                  onOpenSeries(item);
+                }}
+              />
+            ) : (
+              <BookTile
+                key={item.id}
+                book={item}
+                onMenu={() => {
+                  onMenu(item);
+                }}
+              />
+            ),
+          )}
           {Array.from({ length: columns - row.length }, (_, index) => (
             <View key={index} style={styles.tile} />
           ))}
@@ -168,6 +259,41 @@ function ShelfRow({ book, onMenu }: WorkProps) {
   );
 }
 
+/** 本棚の作品: 読者が選んだ表示（グリッドかリスト）で並べる。 */
+function ShelfItems({
+  view,
+  items,
+  onMenu,
+  onOpenSeries,
+}: ShelfItemsProps & { view: ShelfView }) {
+  if (view === "grid") {
+    return <Grid items={items} onMenu={onMenu} onOpenSeries={onOpenSeries} />;
+  }
+  return (
+    <RowGroup>
+      {items.map((item) =>
+        isSeries(item) ? (
+          <SeriesRow
+            key={item.id}
+            series={item}
+            onOpen={() => {
+              onOpenSeries(item);
+            }}
+          />
+        ) : (
+          <ShelfRow
+            key={item.id}
+            book={item}
+            onMenu={() => {
+              onMenu(item);
+            }}
+          />
+        ),
+      )}
+    </RowGroup>
+  );
+}
+
 function HistoryRow({ book, onMenu }: WorkProps) {
   const { isBookmarked, setBookmarked } = useLibrary();
   const episode = useEpisode(book);
@@ -221,6 +347,39 @@ export default function BookshelfScreen() {
     matchesSearch(item.book, query),
   );
   const filtered = query.trim() !== "";
+  // 巻の一覧を出している作品。本棚の同じページの中で切り替える: タブも
+  // ミニプレーヤーもそのまま残る。巻を消して 1 冊になった作品は、もう
+  // まとまりではないので、本棚に戻る。
+  const [seriesId, setSeriesId] = useState<string | null>(null);
+  const series = bySeries(library.shelf)
+    .filter(isSeries)
+    .find((item) => item.id === seriesId);
+  const inSeries = series !== undefined;
+  useEffect(() => {
+    if (!inSeries) {
+      return undefined;
+    }
+    // Android の「戻る」は、巻の一覧から本棚へ戻す。
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        setSeriesId(null);
+        return true;
+      },
+    );
+    return () => {
+      subscription.remove();
+    };
+  }, [inSeries]);
+  // 本棚のタブをもう一度押すと、ほかのタブと同じく最初のページに戻る。
+  const navigation = useNavigation();
+  useEffect(
+    () =>
+      navigation.addListener("tabPress" as never, () => {
+        setSeriesId(null);
+      }),
+    [navigation],
+  );
   const [tab, setTab] = useState<Tab>("shelf");
   const [view, setView] = useState<ShelfView>(loadShelfView);
   const [menu, setMenu] = useState<SheetMenu | null>(null);
@@ -353,165 +512,196 @@ export default function BookshelfScreen() {
     ],
   };
 
+  const viewToggle = (
+    <IconButton
+      // 押すと切り替わる先のレイアウトを示す。
+      icon={view === "grid" ? "list" : "grid"}
+      label={view === "grid" ? "リスト表示にする" : "グリッド表示にする"}
+      size={20}
+      color={colors.secondary}
+      onPress={() => {
+        changeView(view === "grid" ? "list" : "grid");
+      }}
+    />
+  );
+  const sheet = (
+    <ActionSheet
+      menu={menu}
+      onClose={() => {
+        setMenu(null);
+      }}
+    />
+  );
+
+  // まとめた作品の巻。本棚と同じ表示で、巻の順に並べる。
+  const volumes = series && (
+    <Screen
+      title={series.title}
+      subtitle={[series.author, volumeCount(series)]
+        .filter(Boolean)
+        .join(" · ")}
+      onBack={() => {
+        setSeriesId(null);
+      }}
+    >
+      <View style={styles.bar}>
+        <Text style={styles.barLabel}>巻の順</Text>
+        {viewToggle}
+      </View>
+      <ShelfItems
+        view={view}
+        items={series.volumes}
+        onMenu={(book) => {
+          setMenu(shelfMenu(book));
+        }}
+        onOpenSeries={() => undefined}
+      />
+    </Screen>
+  );
+
   return (
     <View style={styles.root}>
-      <Screen
-        title="本棚"
-        actions=<IconButton
-          icon={searching ? "x" : "search"}
-          label={searching ? "検索を閉じる" : "検索"}
-          onPress={() => {
-            setSearching(!searching);
-            setQuery("");
-          }}
-        />
-        // 引き下げると、本棚を端末から読み直す。
-        refreshing={refreshing}
-        onRefresh={() => {
-          library.reload();
-          setNow(Date.now());
-          // 読み込みは一瞬で終わる。スピナーは、引き下げへの応答として見える
-          // だけの時間残す。
-          setRefreshing(true);
-          setTimeout(() => {
-            setRefreshing(false);
-          }, 500);
-        }}
+      {/* 巻の一覧を出している間も、本棚は隠すだけで残す: 戻ったときに、
+      スクロールした位置がそのままになる。 */}
+      <View
+        style={[styles.root, inSeries && styles.hidden]}
+        accessibilityElementsHidden={inSeries}
+        importantForAccessibility={inSeries ? "no-hide-descendants" : "auto"}
       >
-        <View style={styles.controls}>
-          {searching && (
-            <View style={styles.field}>
-              <Icon name="search" size={16} color={colors.secondary} />
-              <NativeTextField
-                accessibilityLabel="作品を検索"
-                placeholder="書名・著者で検索"
-                returnKeyType="search"
-                autoFocus
-                onChangeText={setQuery}
-              />
-            </View>
-          )}
-          <View style={styles.tabs} accessibilityRole="tablist">
-            {tabs.map((item) => (
-              <View key={item.key} style={styles.tab}>
-                <NativeButton
-                  label={item.label}
-                  accessibilityLabel={item.name}
-                  variant="outlined"
-                  role="tab"
-                  selected={item.key === tab}
-                  fill
-                  onPress={() => {
-                    setTab(item.key);
-                    setNow(Date.now());
-                  }}
+        <Screen
+          title="本棚"
+          actions=<IconButton
+            icon={searching ? "x" : "search"}
+            label={searching ? "検索を閉じる" : "検索"}
+            onPress={() => {
+              setSearching(!searching);
+              setQuery("");
+            }}
+          />
+          // 引き下げると、本棚を端末から読み直す。
+          refreshing={refreshing}
+          onRefresh={() => {
+            library.reload();
+            setNow(Date.now());
+            // 読み込みは一瞬で終わる。スピナーは、引き下げへの応答として見える
+            // だけの時間残す。
+            setRefreshing(true);
+            setTimeout(() => {
+              setRefreshing(false);
+            }, 500);
+          }}
+        >
+          <View style={styles.controls}>
+            {searching && (
+              <View style={styles.field}>
+                <Icon name="search" size={16} color={colors.secondary} />
+                <NativeTextField
+                  accessibilityLabel="作品を検索"
+                  placeholder="書名・著者で検索"
+                  returnKeyType="search"
+                  autoFocus
+                  onChangeText={setQuery}
                 />
               </View>
-            ))}
-          </View>
-          <View style={styles.bar}>
-            <Text style={styles.barLabel}>
-              {tab === "shelf" ? "最近開いた順" : "読んだ順"}
-            </Text>
-            {tab === "shelf" ? (
-              <IconButton
-                // 押すと切り替わる先のレイアウトを示す。
-                icon={view === "grid" ? "list" : "grid"}
-                label={
-                  view === "grid" ? "リスト表示にする" : "グリッド表示にする"
-                }
-                size={20}
-                color={colors.secondary}
-                onPress={() => {
-                  changeView(view === "grid" ? "list" : "grid");
-                }}
-              />
-            ) : (
-              <IconButton
-                icon="ellipsis"
-                label="履歴のメニュー"
-                size={20}
-                color={colors.secondary}
-                disabled={library.recent.length === 0}
-                onPress={() => {
-                  setMenu(historyActions);
-                }}
-              />
             )}
+            <View style={styles.tabs} accessibilityRole="tablist">
+              {tabs.map((item) => (
+                <View key={item.key} style={styles.tab}>
+                  <NativeButton
+                    label={item.label}
+                    accessibilityLabel={item.name}
+                    variant="outlined"
+                    role="tab"
+                    selected={item.key === tab}
+                    fill
+                    onPress={() => {
+                      setTab(item.key);
+                      setNow(Date.now());
+                    }}
+                  />
+                </View>
+              ))}
+            </View>
+            <View style={styles.bar}>
+              <Text style={styles.barLabel}>
+                {tab === "shelf" ? "最近開いた順" : "読んだ順"}
+              </Text>
+              {tab === "shelf" ? (
+                viewToggle
+              ) : (
+                <IconButton
+                  icon="ellipsis"
+                  label="履歴のメニュー"
+                  size={20}
+                  color={colors.secondary}
+                  disabled={library.recent.length === 0}
+                  onPress={() => {
+                    setMenu(historyActions);
+                  }}
+                />
+              )}
+            </View>
           </View>
-        </View>
-        {tab === "shelf" &&
-          shelf.length > 0 &&
-          (view === "grid" ? (
-            <Grid
-              books={shelf}
+          {tab === "shelf" && shelf.length > 0 && (
+            <ShelfItems
+              view={view}
+              items={bySeries(shelf)}
               onMenu={(book) => {
                 setMenu(shelfMenu(book));
               }}
+              onOpenSeries={(item) => {
+                setSeriesId(item.id);
+              }}
             />
-          ) : (
-            <RowGroup>
-              {shelf.map((book) => (
-                <ShelfRow
-                  key={book.id}
-                  book={book}
-                  onMenu={() => {
-                    setMenu(shelfMenu(book));
-                  }}
-                />
-              ))}
-            </RowGroup>
-          ))}
-        {filtered && (tab === "shelf" ? shelf : recent).length === 0 && (
-          <EmptyState
-            icon="search"
-            title="見つかりませんでした"
-            description="書名か著者の一部を入れてください。"
-          />
-        )}
-        {tab === "shelf" && !filtered && shelf.length === 0 && (
-          <EmptyState
-            icon="library"
-            title="本棚は空です"
-            description="ホームでWeb小説を探すか、ファイルを取り込むと、ここに並びます。"
-          />
-        )}
-        {tab === "history" &&
-          byDay(recent, now).map((day) => (
-            <Section key={day.label} title={day.label}>
-              <RowGroup>
-                {day.items.map((item) => (
-                  <HistoryRow
-                    key={item.book.id}
-                    book={item.book}
-                    onMenu={() => {
-                      setMenu(historyMenu(item));
-                    }}
-                  />
-                ))}
-              </RowGroup>
-            </Section>
-          ))}
-        {tab === "history" && !filtered && recent.length === 0 && (
-          <EmptyState
-            icon="library"
-            title="履歴はありません"
-            description="Web小説を読むと、本棚に追加していない作品もここに並びます。"
-          />
-        )}
-      </Screen>
-      <ActionSheet
-        menu={menu}
-        onClose={() => {
-          setMenu(null);
-        }}
-      />
+          )}
+          {filtered && (tab === "shelf" ? shelf : recent).length === 0 && (
+            <EmptyState
+              icon="search"
+              title="見つかりませんでした"
+              description="書名か著者の一部を入れてください。"
+            />
+          )}
+          {tab === "shelf" && !filtered && shelf.length === 0 && (
+            <EmptyState
+              icon="library"
+              title="本棚は空です"
+              description="ホームでWeb小説を探すか、ファイルを取り込むと、ここに並びます。"
+            />
+          )}
+          {tab === "history" &&
+            byDay(recent, now).map((day) => (
+              <Section key={day.label} title={day.label}>
+                <RowGroup>
+                  {day.items.map((item) => (
+                    <HistoryRow
+                      key={item.book.id}
+                      book={item.book}
+                      onMenu={() => {
+                        setMenu(historyMenu(item));
+                      }}
+                    />
+                  ))}
+                </RowGroup>
+              </Section>
+            ))}
+          {tab === "history" && !filtered && recent.length === 0 && (
+            <EmptyState
+              icon="library"
+              title="履歴はありません"
+              description="Web小説を読むと、本棚に追加していない作品もここに並びます。"
+            />
+          )}
+        </Screen>
+      </View>
+      {volumes}
+      {sheet}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  hidden: { display: "none" },
   controls: { gap: 4 },
   field: {
     minHeight: 44,

@@ -5,6 +5,7 @@ import { parseEpub } from "./epub";
 import {
   coverUri,
   fileUri,
+  keepSeries,
   loadFiles,
   readFile,
   saveFile,
@@ -95,6 +96,7 @@ export function savedFileBooks(): Book[] {
     title: saved.title,
     author: saved.author,
     cover: coverUri(saved),
+    ...(saved.series && { series: saved.series }),
     file: saved.file,
     chapters: [],
   }));
@@ -116,48 +118,98 @@ export async function openSavedFile(id: string): Promise<Book> {
       "open" in format
         ? await format.open(fileUri(saved.file), saved.id)
         : format.parse(await readFile(saved), saved.id);
+    try {
+      keepSeries(saved.id, book.series);
+    } catch {
+      /* 書けなくても本は読める。次に開いたときにまた試す。 */
+    }
     return withStore(book, saved);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : unreadable);
   }
 }
 
+/** 取り込めなかったファイルと、その理由。 */
+export interface ImportFailure {
+  /** 選んだファイルの名前。 */
+  name: string;
+  message: string;
+}
+
+/** 一度の取り込みの結果: 本棚に入った作品と、入らなかったファイル。 */
+export interface ImportResult {
+  added: Book[];
+  failed: ImportFailure[];
+}
+
 /**
- * システムのファイルピッカーを開き、選ばれたファイルを読んで、そのコピーを
- * 端末に保存する。作品が本棚に残るようにするため。
+ * 選ばれたファイル 1 つを読んで、そのコピーを端末に保存する。返すのは本棚が
+ * 見せる形で、本文はない（`savedFileBooks` と同じ）: 取り込むだけでは開かない
+ * ので、何冊分もの本文をメモリに持たない。本文は開いたときに読む。
  */
-export async function importFile(): Promise<Book | null> {
+async function importOne(file: File): Promise<Book> {
+  const bytes = await file.bytes();
+  const format = formatOf(file.name, bytes);
+  if (format.maxBytes && bytes.length > format.maxBytes) {
+    throw new Error(
+      `ファイルは${format.maxBytes / 1024 / 1024} MB以下にしてください。`,
+    );
+  }
+  const parsed =
+    "open" in format
+      ? await withTempFile(bytes, format.extension, async (uri) => {
+          await format.check(uri);
+          const opened = await format.open(uri, file.name);
+          return { ...opened, cover: await format.cover(uri) };
+        })
+      : format.parse(bytes, file.name);
+  // id は、作品の位置と辞書を保存するときのキー: ファイルの名前があれば
+  // それを、なければタイトルを使う。同じファイルをもう一度取り込んだときに
+  // それらが見つかるようにするため。
+  const book = named(file.name)
+    ? parsed
+    : { ...parsed, id: `${parsed.title}.${format.extension}` };
+  return {
+    ...withStore(book, saveFile(book, bytes, format.extension)),
+    chapters: [],
+  };
+}
+
+/**
+ * システムのファイルピッカーを開き、選ばれたファイル（いくつでも）を読んで、
+ * そのコピーを端末に保存する。作品が本棚に残るようにするため。ファイルは
+ * 1 つずつ順に読む: メモリに載るのは一度に 1 つ。読めないファイルがあっても
+ * 残りは取り込み、読めなかったものは理由と一緒に返す。ピッカーを閉じたら
+ * null。`onProgress` は、各ファイルを読み始める前に呼ばれる。
+ */
+export async function importFiles(
+  onProgress?: (done: number, total: number) => void,
+): Promise<ImportResult | null> {
   const pick = await File.pickFileAsync({
     mimeTypes: formats.flatMap((format) => format.mimeTypes),
+    multipleFiles: true,
   });
   if (pick.canceled) {
     return null;
   }
-  const file = pick.result;
-  try {
-    const bytes = await file.bytes();
-    const format = formatOf(file.name, bytes);
-    if (format.maxBytes && bytes.length > format.maxBytes) {
-      throw new Error(
-        `ファイルは${format.maxBytes / 1024 / 1024} MB以下にしてください。`,
-      );
+  const result: ImportResult = { added: [], failed: [] };
+  for (const [index, file] of pick.result.entries()) {
+    onProgress?.(index, pick.result.length);
+    try {
+      // 順に読む: 大きなファイルを同時にメモリへ載せない。
+      // oxlint-disable-next-line no-await-in-loop
+      const book = await importOne(file);
+      // 同じ名前のファイルを 2 つ選んだときは、後のものが前のものを置き換える。
+      result.added = [
+        ...result.added.filter((other) => other.id !== book.id),
+        book,
+      ];
+    } catch (error) {
+      result.failed.push({
+        name: file.name,
+        message: error instanceof Error ? error.message : unreadable,
+      });
     }
-    const parsed =
-      "open" in format
-        ? await withTempFile(bytes, format.extension, async (uri) => {
-            await format.check(uri);
-            const opened = await format.open(uri, file.name);
-            return { ...opened, cover: await format.cover(uri) };
-          })
-        : format.parse(bytes, file.name);
-    // id は、作品の位置と辞書を保存するときのキー: ファイルの名前があれば
-    // それを、なければタイトルを使う。同じファイルをもう一度取り込んだときに
-    // それらが見つかるようにするため。
-    const book = named(file.name)
-      ? parsed
-      : { ...parsed, id: `${parsed.title}.${format.extension}` };
-    return withStore(book, saveFile(book, bytes, format.extension));
-  } catch (error) {
-    throw new Error(error instanceof Error ? error.message : unreadable);
   }
+  return result;
 }

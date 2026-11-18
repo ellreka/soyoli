@@ -39,11 +39,11 @@ src/
   lib/appTask.ts  Android: 最初の画面での「戻る」は、アプリを閉じずに裏へ回す（modules/app-task）
   testing/app.tsx 端末を偽物にしたアプリ全体。src/__tests__/app 用
   features/
-    books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで
+    books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで。series.ts が同じ作品の巻をまとめる
     web/          sites/ = サイトごとに 1 つの WebSite（アドレス、パーサー）。episode.ts がページから Book を作る
     dictionary/   読み方辞書: そのデータ（entries.ts）、プロバイダー、編集画面
     speech/       段落について読み上げられるもの: ルール、ルビ、カッコの声（純粋関数）
-    library/      読者が持っている作品: 本棚、履歴、その保存、本棚の画面
+    library/      読者が持っている作品: 本棚、履歴、その保存、本棚の画面。ファイルの取り込み（ImportFiles）とその知らせ
     player/       Playback（何が開いていて、どこにいて、どう読むか）、そのフック、プレーヤーの UI
     loading/      再生が来た章の本文の取得。最後の本の復元
     reader/       ビューアー: 章の本文、そのシート、表示設定

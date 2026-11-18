@@ -12,6 +12,7 @@ import {
 import HomeLayout from "@/app/(tabs)/home/_layout";
 import BrowseScreen from "@/app/(tabs)/home/browse";
 import HomeScreen from "@/app/(tabs)/home/index";
+import { ImportFilesProvider } from "@/features/library/ImportFiles";
 import { LibraryProvider, useLibrary } from "@/features/library/Library";
 import { saveLibrary } from "@/features/library/libraryStorage";
 import { PlaybackProvider } from "@/features/player/Playback";
@@ -50,9 +51,11 @@ jest.mock("expo-speech", () => ({
 function Layout() {
   return (
     <LibraryProvider>
-      <PlaybackProvider>
-        <Slot />
-      </PlaybackProvider>
+      <ImportFilesProvider>
+        <PlaybackProvider>
+          <Slot />
+        </PlaybackProvider>
+      </ImportFilesProvider>
     </LibraryProvider>
   );
 }
@@ -153,7 +156,9 @@ it("shows each site with its icon, and leaves the adult sites out of Home", asyn
   expect(screen.queryByText(/成人向け|R18|ノクターン/)).toBeNull();
   // なろうも並べない: その作品はアドレスから開く。
   expect(screen.queryByText(/なろう/)).toBeNull();
-  expect(screen.getByText("対応形式：.epub / .pdf")).toBeOnTheScreen();
+  expect(
+    screen.getByText("対応形式：.epub / .pdf（複数選べます）"),
+  ).toBeOnTheScreen();
   await fireEvent.press(
     screen.getByRole("button", { name: "ハーメルンを開く" }),
   );
