@@ -27,7 +27,7 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.ellreka.soyoli",
       "runtimeVersion": {
-        "policy": "appVersion"
+        "policy": "fingerprint"
       },
       "permissions": ["android.permission.MODIFY_AUDIO_SETTINGS"]
     },
@@ -83,7 +83,7 @@
       "url": "https://u.expo.dev/641266bf-aded-4d33-a0b1-9392b8950abb"
     },
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "fingerprint"
     },
     "owner": "ellreka"
   }
