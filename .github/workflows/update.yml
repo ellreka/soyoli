@@ -1,0 +1,110 @@
+name: Update
+
+# OTA アップデートを配る（eas update）。main への push は production に配り、
+# 手動ではチャンネルを選べる。
+#
+# 届くのは、同じチャンネルで、ネイティブ側のハッシュ（runtimeVersion の
+# fingerprint）が同じビルドだけ。ネイティブ側を変えたコミット（依存の追加、
+# パッチ、app.json の設定）からのアップデートは、出ているビルドには届かず、
+# 前のままで動く。そのときはここが警告を出す: app.json の version を
+# 上げてタグを push すると、build-android.yml が新しい APK を Release に付ける。
+
+on:
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 配るチャンネル（eas.json の channel）
+        type: choice
+        default: production
+        options:
+          - production
+          - preview
+      message:
+        description: アップデートの説明（空ならコミットの件名）
+        type: string
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+
+# 配っている途中のものは止めない: 同じチャンネルへは順に配る。
+concurrency:
+  group: update-${{ inputs.channel || 'production' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  EAS_CLI_VERSION: 27.10.0
+  CHANNEL: ${{ inputs.channel || 'production' }}
+
+jobs:
+  update:
+    name: eas update
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: jdx/mise-action@v5.2.8
+
+      - name: pnpm のストアの場所を調べる
+        id: pnpm-store
+        run: echo "path=$(pnpm store path --silent)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache@v6.1.0
+        with:
+          path: ${{ steps.pnpm-store.outputs.path }}
+          key: pnpm-store-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-store-${{ runner.os }}-
+
+      - name: 依存を入れる
+        run: pnpm install --frozen-lockfile
+
+      # 壊れたものは配らない。CI（ci.yml）とは別に走るので、ここでも確かめる。
+      - name: lint
+        run: pnpm lint
+
+      - name: 型チェック
+        run: pnpm typecheck
+
+      - name: テスト
+        run: pnpm test
+
+      # Release のノートには、その APK の runtimeVersion が書いてある
+      # （build-android.yml）。いまのハッシュと違えば、配っても出ている APK
+      # には届かない。配るのは止めない: 次の APK が出れば、そこに届く。
+      - name: 出ている APK に届くか調べる
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          current=$(pnpm exec expo-updates fingerprint:generate --platform android | jq -r .hash)
+          released=$(gh release view --repo "$GITHUB_REPOSITORY" --json body --jq .body \
+            | grep -oE 'runtimeVersion: `[0-9a-f]{40}`' | grep -oE '[0-9a-f]{40}' || true)
+          {
+            echo "- いまの runtimeVersion: \`$current\`"
+            echo "- 最新の Release の runtimeVersion: \`${released:-不明}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$current" != "$released" ]; then
+            echo "::warning title=出ている APK には届かない::ネイティブ側が最新の Release から変わっている。app.json の version を上げてタグを push し、新しい APK を出すこと。"
+          fi
+
+      # --environment は、EAS に置いた環境変数のどの組を使うか。SDK 55 からは
+      # 必須で、チャンネルと同じ名前の環境を使う。
+      - name: 配る
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          MESSAGE: ${{ inputs.message }}
+        run: |
+          message=${MESSAGE:-$(git log -1 --format=%s)}
+          pnpm dlx "eas-cli@$EAS_CLI_VERSION" update \
+            --channel "$CHANNEL" \
+            --environment "$CHANNEL" \
+            --message "$message" \
+            --non-interactive

@@ -82,6 +82,10 @@ src/
 
 Android は GitHub Actions でもビルドできる（`.github/workflows/build-android.yml`）: runner の上で `eas build --local` を実行し、署名の鍵は EAS から取る。手動で実行する（プロファイルを選ぶ）か、`v*` のタグを push すると `production-apk` の APK が Release に付く（タグは `app.json` の `version` と同じでなければならない: `0.0.1` なら `v0.0.1`）。リポジトリの Secret に `EXPO_TOKEN` が要る。EAS CLI の版はワークフローの `EAS_CLI_VERSION` で固定している。 APK のプロファイル（`development`・`preview`・`production-apk`）は arm64 だけをビルドする（`eas.json` の `env`）。Play ストア向けの AAB を出す `production` は絞らない。
 
+OTA アップデートも GitHub Actions が配る（`.github/workflows/update.yml`）: `main` への push（文書だけの変更を除く）で `production` チャンネルに配り、手動で実行するとチャンネルを選べる。届くのは、同じチャンネルで、ネイティブ側のハッシュが同じビルドだけ（`app.json` の `runtimeVersion` が `fingerprint`）。ハッシュは、ネイティブ側に効くもの（依存とそのバージョン、`patches/`、`modules/`、`app.json` の設定、アイコン）から Expo が計算し、`version` は入らない。ハッシュに入れないものは `fingerprint.config.js` に書く。いまのハッシュは `npx expo-updates fingerprint:generate --platform android` で見られる。
+
+**ネイティブ側を変えたら、新しい APK を出すまで、出ている APK にアップデートは届かない**（動かせない JS が届くことはなく、前のまま動く）。ビルドのワークフローは APK のハッシュを Release のノートの先頭に `runtimeVersion: `…`` と書き、アップデートのワークフローはそれをいまのハッシュと見比べて、違えば警告を出す。警告が出たら、`app.json` の `version` を上げてタグを push する。
+
 ## ルール
 
 - **開発用のビルドは別のアプリ。** `app.config.ts` が `app.json` を土台にして、`APP_VARIANT=development` のときだけ名前（`Soyoli(dev)`）・ID（`com.ellreka.soyoli.dev`）・URL スキーム（`soyoli-dev`）を変える。本番と同じ端末に並べて入れるためである。この変数は `eas.json` の `development` と、`pnpm start`・`pnpm android`・`pnpm ios` が立てる。どのビルドにも同じ設定は `app.json` に書く。ローカルの `android/`・`ios/` は作ったときの ID のままなので、切り替えたら `npx expo prebuild --clean` で作り直す。
