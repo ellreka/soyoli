@@ -1,7 +1,12 @@
 import { strFromU8, unzipSync } from "fflate";
 import { XMLParser } from "fast-xml-parser";
 
-import { contentTags, type Book, type ContentNode } from "./book";
+import {
+  contentTags,
+  type Book,
+  type BookSeries,
+  type ContentNode,
+} from "./book";
 
 type XmlNode = {
   [name: string]: XmlNode[] | string | Record<string, string>;
@@ -64,6 +69,55 @@ function resolvePath(base: string, href: string): string {
     }
   }
   return parts.join("/");
+}
+
+/** 巻の番号。数として読めなければ undefined。 */
+function position(value: string | undefined): number | undefined {
+  const digits = value?.trim() ?? "";
+  // 空の文字列は Number では 0 になる: 番号なしとして扱う。
+  const number = digits === "" ? Number.NaN : Number(digits);
+  return Number.isFinite(number) ? number : undefined;
+}
+
+/**
+ * ファイルが名乗るシリーズ。EPUB 3 の `belongs-to-collection`（巻は
+ * それを refines する `group-position`）を先に見て、なければ Calibre が書く
+ * `calibre:series` と `calibre:series_index` を見る。どちらもなければ
+ * undefined: 書名からは推測しない。
+ */
+function seriesOf(metadata: XmlNode): BookSeries | undefined {
+  const metas = elements(children(metadata), "meta");
+  const refining = (id: string | undefined, property: string) =>
+    id === undefined
+      ? undefined
+      : metas.find(
+          (meta) =>
+            attrs(meta).refines === `#${id}` &&
+            attrs(meta).property === property,
+        );
+  for (const meta of metas) {
+    if (attrs(meta).property !== "belongs-to-collection") {
+      continue;
+    }
+    const name = text(children(meta)).trim();
+    const { id } = attrs(meta);
+    const type = refining(id, "collection-type");
+    // 種類が書かれていて series でないもの（set: 全集など）は、巻ではない。
+    if (!name || (type && text(children(type)).trim() !== "series")) {
+      continue;
+    }
+    const at = refining(id, "group-position");
+    const number = position(at && text(children(at)));
+    return number === undefined ? { name } : { name, position: number };
+  }
+  const named = (key: string) =>
+    metas.map(attrs).find((meta) => meta.name === key)?.content;
+  const name = named("calibre:series")?.trim();
+  if (!name) {
+    return undefined;
+  }
+  const number = position(named("calibre:series_index"));
+  return number === undefined ? { name } : { name, position: number };
 }
 
 /** リフロー型の EPUB を、出どころに依存しないリーダー用の内容に解析する。 */
@@ -261,10 +315,12 @@ export function parseEpub(bytes: Uint8Array, id: string): Book {
   const cover = [...items.values()].find((item) =>
     item.properties.includes("cover-image"),
   );
+  const series = seriesOf(metadata);
   return {
     id,
     source: "file",
     title,
+    ...(series && { series }),
     author: elements(children(metadata), "creator")
       .map((node) => text(children(node)).trim())
       .join("、"),

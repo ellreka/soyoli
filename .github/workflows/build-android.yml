@@ -34,6 +34,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       file: ${{ steps.output.outputs.file }}
+      runtime: ${{ steps.runtime.outputs.hash }}
     steps:
       - uses: actions/checkout@v7.0.1
         with:
@@ -63,6 +64,15 @@ jobs:
 
       - name: 依存を入れる
         run: pnpm install --frozen-lockfile
+
+      # このビルドが受け取れる OTA アップデートの札（runtimeVersion の
+      # fingerprint）。Release のノートに書き、update.yml が見比べる。
+      - name: runtimeVersion を調べる
+        id: runtime
+        run: |
+          hash=$(pnpm exec expo-updates fingerprint:generate --platform android | jq -r .hash)
+          echo "hash=$hash" >> "$GITHUB_OUTPUT"
+          echo "runtimeVersion: \`$hash\`" >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-java@v6.3.0
         with:
@@ -115,4 +125,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           FILE: ${{ needs.build.outputs.file }}
-        run: gh release create "$GITHUB_REF_NAME" "$FILE" --repo "$GITHUB_REPOSITORY" --generate-notes
+          RUNTIME: ${{ needs.build.outputs.runtime }}
+        # ノートの先頭の runtimeVersion の行は update.yml が読む。形を変えないこと。
+        run: |
+          gh release create "$GITHUB_REF_NAME" "$FILE" --repo "$GITHUB_REPOSITORY" \
+            --notes "runtimeVersion: \`$RUNTIME\`" --generate-notes

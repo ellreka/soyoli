@@ -55,6 +55,38 @@ it("keeps mixed text, ruby and relative images while following spine rather than
   ]);
 });
 
+it("reads the series a file names itself, and guesses none from its title", () => {
+  const opf = (metadata: string) => ({
+    "OPS/book.opf": `<package xmlns:dc="urn:dc"><metadata><dc:title>テスト本 2</dc:title>${metadata}</metadata>
+      <manifest><item id="first" href="text/first.xhtml" media-type="application/xhtml+xml"/></manifest>
+      <spine><itemref idref="first"/></spine></package>`,
+  });
+  const series = (metadata: string) =>
+    parseEpub(fixture(opf(metadata)), "fixture").series;
+  expect(series("")).toBeUndefined();
+  // EPUB 3
+  expect(
+    series(
+      '<meta property="belongs-to-collection" id="c1">銀河の旅</meta><meta refines="#c1" property="collection-type">series</meta><meta refines="#c1" property="group-position">2</meta>',
+    ),
+  ).toEqual({ name: "銀河の旅", position: 2 });
+  expect(
+    series('<meta property="belongs-to-collection">銀河の旅</meta>'),
+  ).toEqual({ name: "銀河の旅" });
+  // 全集などの set は巻ではない。
+  expect(
+    series(
+      '<meta property="belongs-to-collection" id="c1">全集</meta><meta refines="#c1" property="collection-type">set</meta>',
+    ),
+  ).toBeUndefined();
+  // Calibre
+  expect(
+    series(
+      '<meta name="calibre:series" content="銀河の旅"/><meta name="calibre:series_index" content="3.0"/>',
+    ),
+  ).toEqual({ name: "銀河の旅", position: 3 });
+});
+
 it("drops executable content, publisher styles, external images and navigation", () => {
   const book = parseEpub(
     fixture({

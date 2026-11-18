@@ -39,11 +39,11 @@ src/
   lib/appTask.ts  Android: 最初の画面での「戻る」は、アプリを閉じずに裏へ回す（modules/app-task）
   testing/app.tsx 端末を偽物にしたアプリ全体。src/__tests__/app 用
   features/
-    books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで
+    books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで。series.ts が同じ作品の巻をまとめる
     web/          sites/ = サイトごとに 1 つの WebSite（アドレス、パーサー）。episode.ts がページから Book を作る
     dictionary/   読み方辞書: そのデータ（entries.ts）、プロバイダー、編集画面
     speech/       段落について読み上げられるもの: ルール、ルビ、カッコの声（純粋関数）
-    library/      読者が持っている作品: 本棚、履歴、その保存、本棚の画面
+    library/      読者が持っている作品: 本棚、履歴、その保存、本棚の画面。ファイルの取り込み（ImportFiles）とその知らせ
     player/       Playback（何が開いていて、どこにいて、どう読むか）、そのフック、プレーヤーの UI
     loading/      再生が来た章の本文の取得。最後の本の復元
     reader/       ビューアー: 章の本文、そのシート、表示設定
@@ -81,6 +81,10 @@ src/
 ドキュメント: <https://docs.expo.dev/eas/index.md>
 
 Android は GitHub Actions でもビルドできる（`.github/workflows/build-android.yml`）: runner の上で `eas build --local` を実行し、署名の鍵は EAS から取る。手動で実行する（プロファイルを選ぶ）か、`v*` のタグを push すると `production-apk` の APK が Release に付く（タグは `app.json` の `version` と同じでなければならない: `0.0.1` なら `v0.0.1`）。リポジトリの Secret に `EXPO_TOKEN` が要る。EAS CLI の版はワークフローの `EAS_CLI_VERSION` で固定している。 APK のプロファイル（`development`・`preview`・`production-apk`）は arm64 だけをビルドする（`eas.json` の `env`）。Play ストア向けの AAB を出す `production` は絞らない。
+
+OTA アップデートも GitHub Actions が配る（`.github/workflows/update.yml`）: `main` への push（文書だけの変更を除く）で `production` チャンネルに配り、手動で実行するとチャンネルを選べる。届くのは、同じチャンネルで、ネイティブ側のハッシュが同じビルドだけ（`app.json` の `runtimeVersion` が `fingerprint`）。ハッシュは、ネイティブ側に効くもの（依存とそのバージョン、`patches/`、`modules/`、`app.json` の設定、アイコン）から Expo が計算し、`version` は入らない。ハッシュに入れないものは `fingerprint.config.js` に書く。いまのハッシュは `npx expo-updates fingerprint:generate --platform android` で見られる。
+
+**ネイティブ側を変えたら、新しい APK を出すまで、出ている APK にアップデートは届かない**（動かせない JS が届くことはなく、前のまま動く）。ビルドのワークフローは APK のハッシュを Release のノートの先頭に `runtimeVersion: `…`` と書き、アップデートのワークフローはそれをいまのハッシュと見比べて、違えば警告を出す。警告が出たら、`app.json` の `version` を上げてタグを push する。
 
 ## ルール
 

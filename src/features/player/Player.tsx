@@ -51,10 +51,12 @@ function timerLabel(timer: SleepTimer, now: number) {
 interface ScrubberProps {
   read: number;
   total: number;
+  /** シークバーが読む位置を動かした。 */
+  onSeek?: () => void;
 }
 
 /** 章のシークバー: タップかドラッグで動かし、離すと再生がその段落へ飛ぶ。 */
-function Scrubber({ read, total }: ScrubberProps) {
+function Scrubber({ read, total, onSeek }: ScrubberProps) {
   const playback = usePlayback();
   const [width, setWidth] = useState(0);
   const [drag, setDrag] = useState<number | null>(null);
@@ -100,6 +102,7 @@ function Scrubber({ read, total }: ScrubberProps) {
         setDrag(null);
         if (target) {
           playback.seekParagraph(target.paragraphIndex);
+          onSeek?.();
         }
       }}
       onResponderTerminate={() => {
@@ -175,10 +178,12 @@ function TimerPill({ timer, onPress }: TimerPillProps) {
 interface PlayerProps {
   /** ビューアーのシートの 1 つを開く: ドックにあるのはボタンだけ。 */
   onOpen: (sheet: "timer" | "audio") => void;
+  /** シークバーが読む位置を動かした: 本文はそこを見せる。 */
+  onSeek?: () => void;
 }
 
 /** 章の本文の下に固定した操作ドック（「リーダービュー」）。 */
-export function Player({ onOpen }: PlayerProps) {
+export function Player({ onOpen, onSeek }: PlayerProps) {
   const { state, settings, error, timer } = usePlayback();
   const paragraphs = state.chapters[state.chapterIndex] ?? [];
   const { read, total } = chapterProgress(paragraphs, state.paragraphIndex);
@@ -188,7 +193,7 @@ export function Player({ onOpen }: PlayerProps) {
 
   return (
     <View testID="viewer-player" style={styles.dock}>
-      <Scrubber read={read} total={total} />
+      <Scrubber read={read} total={total} onSeek={onSeek} />
       <Text style={styles.count}>
         {total ? `${count(read)} / ${count(total)} 字` : "本文なし"}
       </Text>

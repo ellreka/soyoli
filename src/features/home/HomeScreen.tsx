@@ -3,13 +3,12 @@ import { IconButton } from "@/components/IconButton";
 import { NativeRow } from "@/components/NativeRow";
 import { RowGroup } from "@/components/RowGroup";
 import { NativeTextField } from "@/components/NativeTextField";
-import { router } from "expo-router";
 import { Image, StyleSheet, Text, View } from "react-native";
 
 import { Icon } from "@/components/Icon";
 import { Screen, Section } from "@/components/Screen";
 import { colors } from "@/constants/theme";
-import { useImportFile } from "@/features/library/useImportFile";
+import { useImportFiles } from "@/features/library/ImportFiles";
 import { displayUrl, resolveWebAddress } from "@/features/web/browser";
 import { listedSites, type ListedSite } from "@/features/web/sites";
 import { openInBrowser } from "@/features/web/openBrowser";
@@ -121,9 +120,10 @@ function SiteRow({ site }: { site: ListedSite }) {
 
 /** ホームタブ: 作品を探す・追加するためのすべての入口。本棚の内容はない。 */
 export default function HomeScreen() {
-  const { importing, error, start } = useImportFile((book) => {
-    router.push({ pathname: "/reader", params: { id: book.id } });
-  });
+  const { importing, progress, result, start } = useImportFiles();
+  // 入った作品は、ミニプレーヤーの上の知らせが伝える。ここに残すのは、
+  // 読めなかったファイルとその理由: 知らせには収まらない。
+  const failed = result?.failed ?? [];
 
   return (
     <Screen title="ホーム">
@@ -139,16 +139,28 @@ export default function HomeScreen() {
         <RowGroup>
           <NativeRow
             title="ファイルを取り込む"
-            detail={importing ? "読み込み中…" : "対応形式：.epub / .pdf"}
+            detail={
+              importing
+                ? progress && progress.total > 1
+                  ? `読み込み中…（${progress.done + 1} / ${progress.total}）`
+                  : "読み込み中…"
+                : "対応形式：.epub / .pdf（複数選べます）"
+            }
             disabled={importing}
             onPress={start}
           />
         </RowGroup>
-        {error && (
-          <Text accessibilityRole="alert" style={styles.error}>
-            {error}
+        {failed.map((failure) => (
+          <Text
+            key={`${failure.name}\n${failure.message}`}
+            accessibilityRole="alert"
+            style={styles.error}
+          >
+            {failure.name
+              ? `${failure.name}: ${failure.message}`
+              : failure.message}
           </Text>
-        )}
+        ))}
       </Section>
     </Screen>
   );

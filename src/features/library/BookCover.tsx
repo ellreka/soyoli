@@ -1,5 +1,6 @@
 import { Image, StyleSheet, Text, View } from "react-native";
 
+import { Icon } from "@/components/Icon";
 import { colors } from "@/constants/theme";
 import { listedSites } from "@/features/web/sites";
 import { isWebNovel, sourceName, type Book } from "@/features/books/book";
@@ -29,6 +30,8 @@ interface BookCoverProps {
   compact?: boolean;
   /** 変えると画像を読み込み直す（本棚を読み込み直した後）。 */
   revision?: number;
+  /** 自分の大きさを持たず、親の箱を埋める（重ねた表紙の一番上）。 */
+  fill?: boolean;
 }
 
 /**
@@ -40,10 +43,14 @@ export function BookCover({
   book,
   compact = false,
   revision = 0,
+  fill = false,
 }: BookCoverProps) {
   if (compact) {
     return (
-      <View style={[styles.cover, styles.compact]} accessible={false}>
+      <View
+        style={[styles.cover, styles.compact, fill && styles.fill]}
+        accessible={false}
+      >
         {book.cover ? (
           <Image
             key={revision}
@@ -64,7 +71,7 @@ export function BookCover({
     );
   }
   return (
-    <View style={styles.cover} accessible={false}>
+    <View style={[styles.cover, fill && styles.fill]} accessible={false}>
       {book.cover ? (
         <Image
           key={revision}
@@ -99,7 +106,98 @@ export function BookCover({
   );
 }
 
+interface SeriesCoverProps extends Omit<BookCoverProps, "fill"> {
+  /** まとまりの冊数。表紙の隅に出す（サムネイルでは出さない）。 */
+  count: number;
+}
+
+/**
+ * 巻をまとめた作品の表紙: 後ろに 2 枚ずらして重ね、束に見せる。形だけで
+ * 単体の作品と見分けられるようにするため。重ねるのは無地の面: ほかの巻の
+ * 表紙を覗かせると、絵がばらばらで束に見えない。全体の大きさは単体の表紙と
+ * 同じで、一番上の表紙はそのぶん少し小さい。
+ */
+export function SeriesCover({ count, compact, ...cover }: SeriesCoverProps) {
+  // ずらす幅: 後ろの 1 枚ごと。
+  const step = compact ? 2 : 4;
+  const radius = compact ? 4 : 6;
+  // 重なりの境目は、背景の色の細い縁で切る。
+  const edge = {
+    borderRadius: radius + 1,
+    borderWidth: 1,
+    borderColor: compact ? colors.surface : colors.background,
+  };
+  return (
+    <View
+      style={compact ? styles.compactStack : styles.stack}
+      accessible={false}
+    >
+      <View
+        style={[
+          styles.layer,
+          styles.back,
+          { top: 0, right: 0, bottom: step * 2, left: step * 2 },
+          { borderRadius: radius },
+        ]}
+      />
+      <View
+        style={[
+          styles.layer,
+          styles.middle,
+          { top: step - 1, right: step - 1, bottom: step - 1, left: step - 1 },
+          edge,
+        ]}
+      />
+      <View
+        style={[
+          styles.layer,
+          { top: step * 2 - 1, right: step * 2 - 1, bottom: -1, left: -1 },
+          edge,
+        ]}
+      >
+        <BookCover {...cover} compact={compact} fill />
+        {!compact && (
+          <View style={styles.count}>
+            <Icon name="layers" size={11} color={colors.text} />
+            <Text style={styles.countLabel}>{count}</Text>
+          </View>
+        )}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  // 単体の表紙と同じ外形。中身はこの中に重ねる。
+  stack: { alignSelf: "stretch", aspectRatio: 2 / 3 },
+  compactStack: { width: 40, aspectRatio: 2 / 3 },
+  layer: { position: "absolute", overflow: "hidden" },
+  back: { backgroundColor: colors.selected },
+  middle: { backgroundColor: colors.border },
+  fill: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    width: undefined,
+    aspectRatio: undefined,
+    alignSelf: "auto",
+  },
+  // 冊数: 表紙の右上。どんな表紙の上でも読めるように、背景の色の面に載せる。
+  count: {
+    position: "absolute",
+    top: 5,
+    right: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 9,
+    backgroundColor: `${colors.background}E6`,
+  },
+  countLabel: { color: colors.text, fontWeight: "600", fontSize: 10 },
   cover: {
     alignSelf: "stretch",
     aspectRatio: 2 / 3,

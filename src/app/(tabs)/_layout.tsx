@@ -4,6 +4,7 @@ import { StyleSheet, View } from "react-native";
 
 import { Icon, type IconName } from "@/components/Icon";
 import { colors } from "@/constants/theme";
+import { ImportNotice } from "@/features/library/ImportNotice";
 import { MiniPlayer } from "@/features/player/MiniPlayer";
 
 /** 左から右の順。本棚が index ルートなので、アプリはここで開く。 */
@@ -19,6 +20,7 @@ export default function TabLayout() {
       backBehavior="history"
       tabBar={(props) => (
         <View>
+          <ImportNotice />
           <MiniPlayer />
           <BottomTabBar {...props} />
         </View>

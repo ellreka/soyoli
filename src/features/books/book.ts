@@ -81,12 +81,38 @@ export const sourceLabels: Record<BookSource, string> = {
   hameln: "ハーメルン",
 };
 
+/**
+ * ファイルが自分で名乗っているシリーズ: 同じ作品の別の巻をまとめるための
+ * もの。書名からは推測しない。
+ */
+export type BookSeries = {
+  name: string;
+  /** シリーズの中での順番（巻）。ファイルに書かれていなければない。 */
+  position?: number;
+};
+
+/** ディスクから読み戻したシリーズ。形が違えば undefined。 */
+export function toBookSeries(value: unknown): BookSeries | undefined {
+  if (!value || typeof value !== "object") {
+    return undefined;
+  }
+  const { name, position } = value as Record<string, unknown>;
+  if (typeof name !== "string" || name.trim() === "") {
+    return undefined;
+  }
+  return typeof position === "number" && Number.isFinite(position)
+    ? { name, position }
+    : { name };
+}
+
 export type Book = {
   id: string;
   source: BookSource;
   title: string;
   author: string;
   cover?: string;
+  /** ファイルにシリーズの情報がある作品に入る（EPUB）。 */
+  series?: BookSeries;
   /** Web 小説の元ページ。ファイル由来の作品にはない。 */
   url?: string;
   /**
