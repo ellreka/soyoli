@@ -339,7 +339,14 @@ export function Reader({ book, onClose }: ReaderProps) {
             </Pressable>
           )}
         </View>
-        <Player onOpen={setSheet} />
+        <Player
+          onOpen={setSheet}
+          // シークバーで動かした先は、本文でも見せる: 手でスクロールして
+          // 追従が切れていても、そこへ戻す。
+          onSeek={() => {
+            setAutoScroll(true);
+          }}
+        />
         {menuOpen && (
           <ReaderMenu
             items={menuItems}

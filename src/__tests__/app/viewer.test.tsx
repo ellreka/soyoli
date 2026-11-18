@@ -422,6 +422,26 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
   expect(jest.mocked(Speech.speak).mock.calls.length).toBe(beforeToggle);
 });
 
+it("follows the reading position again once the seek bar moves it", async () => {
+  await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
+  await screen.findByTestId("chapter-content");
+  const follow = { name: "読み上げ位置に戻る" };
+  await fireEvent(screen.getByTestId("chapter-content"), "scrollBeginDrag", {
+    nativeEvent: {
+      contentOffset: { x: 0, y: 100 },
+      contentSize: { width: 390, height: 2000 },
+      layoutMeasurement: { width: 390, height: 500 },
+    },
+  });
+  expect(screen.getByRole("button", follow)).toBeOnTheScreen();
+  // シークバーで動かした先は、本文でも見える: 追従がオンに戻る。
+  await seek(90);
+  expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
+    "もう一つの文。",
+  );
+  expect(screen.queryByRole("button", follow)).toBeNull();
+});
+
 it("opens the TOC from its header button; a book without a source page has no way back to one in its menu", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   await screen.findByTestId("chapter-content");
