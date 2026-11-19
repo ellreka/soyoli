@@ -10,9 +10,20 @@ Web 小説や EPUB などを読み上げながら読むためのアプリ
 [![ダウンロード数](https://img.shields.io/github/downloads/ellreka/soyoli/total)](https://github.com/ellreka/soyoli/releases)
 [![Android のビルド](https://github.com/ellreka/soyoli/actions/workflows/build-android.yml/badge.svg)](https://github.com/ellreka/soyoli/actions/workflows/build-android.yml)
 
-<a href="https://apps.obtainium.imranr.dev/redirect.html?r=obtainium://add/https://github.com/ellreka/soyoli"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="64" alt="Obtainium で入手"></a>
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/ellreka/soyoli"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" height="64" alt="Obtainium で入手"></a>
 
 </div>
+
+<p align="center">
+  <img src="docs/screenshots/home.png" width="30%" alt="ホーム: 対応サイトとファイルの取り込み">
+  <img src="docs/screenshots/shelf.png" width="30%" alt="本棚">
+  <img src="docs/screenshots/reader.png" width="30%" alt="ビューアー: 本文とプレーヤー">
+</p>
+<p align="center">
+  <img src="docs/screenshots/voice.png" width="30%" alt="音声設定: 速度と声の高さ">
+  <img src="docs/screenshots/dictionary.png" width="30%" alt="読み方辞書: 登録した読みの一覧">
+  <img src="docs/screenshots/dictionary-edit.png" width="30%" alt="読み方辞書: 読みの登録（正規表現）">
+</p>
 
 ## 主な機能
 
