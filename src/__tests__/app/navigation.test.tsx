@@ -181,6 +181,42 @@ it("has nothing to continue at launch when the last book's file cannot be read",
   });
 });
 
+it("keeps playing the open book when a file finishes reading after its reader was closed", async () => {
+  const kept = {
+    ...book,
+    id: "kept-01",
+    title: "読み込む作品",
+    file: "kept.epub",
+  };
+  const playing = { ...book, file: "playing.epub" };
+  jest
+    .mocked(savedFileBooks)
+    .mockReturnValue([{ ...kept, chapters: [] }, playing]);
+  const reading: { finish?: (value: typeof kept) => void } = {};
+  jest.mocked(openSavedFile).mockReturnValue(
+    new Promise((resolve) => {
+      reading.finish = resolve;
+    }),
+  );
+  jest.mocked(loadPlayback).mockReturnValue({
+    bookId: "sample-01",
+    chapterIndex: 0,
+    paragraphIndex: 0,
+    rate: 1,
+    pitch: 1,
+  });
+  await renderRouter(routes, { initialUrl: "/reader?id=kept-01" });
+  expect(await screen.findByText("読み込み中…")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
+  expect(screen).toHavePathname("/");
+  await act(async () => {
+    reading.finish?.(kept);
+  });
+  const mini = within(screen.getByTestId("mini-player"));
+  expect(mini.getByText("サンプル作品")).toBeOnTheScreen();
+  expect(mini.queryByText("読み込む作品")).toBeNull();
+});
+
 it("keeps one browser: opening a page while it is open takes it there", async () => {
   jest.mocked(loadLibrary).mockReturnValue([
     {

@@ -82,6 +82,70 @@ function failureMessage(cause: unknown): string {
     : "ファイルを読み込めませんでした。";
 }
 
+interface FocusEvents {
+  isFocused: () => boolean;
+  addListener: (event: "focus" | "blur", listener: () => void) => () => void;
+}
+
+interface OpenTarget {
+  bookId: string | undefined;
+  navigation: FocusEvents;
+  bookById: (id: string) => Book | undefined;
+  loadFile: (id: string) => Promise<Book>;
+  openBook: (book: Book) => void;
+  markOpened: (id: string) => void;
+  onFailure: (failure: FileFailure) => void;
+}
+
+function openOnFocus(target: OpenTarget): Subscription {
+  const { bookId, navigation, bookById, loadFile, onFailure } = target;
+  const visit = { current: { live: false } };
+  function leave(): void {
+    visit.current.live = false;
+  }
+  function show(book: Book): void {
+    target.openBook(book);
+    target.markOpened(book.id);
+  }
+  function open(): void {
+    leave();
+    const seen = { live: true };
+    visit.current = seen;
+    const found = bookId ? bookById(bookId) : undefined;
+    if (!found) {
+      return;
+    }
+    if (!needsFile(found)) {
+      show(found);
+      return;
+    }
+    loadFile(found.id).then(
+      (loaded) => {
+        if (seen.live) {
+          show(loaded);
+        }
+      },
+      (cause: unknown) => {
+        if (seen.live) {
+          onFailure({ id: found.id, message: failureMessage(cause) });
+        }
+      },
+    );
+  }
+  return () => {
+    if (navigation.isFocused()) {
+      open();
+    }
+    const stopFocus = navigation.addListener("focus", open);
+    const stopBlur = navigation.addListener("blur", leave);
+    return () => {
+      stopFocus();
+      stopBlur();
+      leave();
+    };
+  };
+}
+
 function useOpenOnFocus(
   id: string | undefined,
   onFailure: (failure: FileFailure) => void,
@@ -89,42 +153,25 @@ function useOpenOnFocus(
   const navigation = useNavigation();
   const { bookById, markOpened, loadFile } = useLibrary();
   const { openBook } = usePlayback();
-  function openOnFocus(bookId: string | undefined): Subscription {
-    function open(): void {
-      const found = bookId ? bookById(bookId) : undefined;
-      if (!found) {
-        return;
-      }
-      if (!needsFile(found)) {
-        openBook(found);
-        markOpened(found.id);
-        return;
-      }
-      loadFile(found.id).then(
-        (loaded) => {
-          openBook(loaded);
-          markOpened(loaded.id);
-        },
-        (cause: unknown) => {
-          onFailure({ id: found.id, message: failureMessage(cause) });
-        },
-      );
-    }
-    return () => {
-      if (navigation.isFocused()) {
-        open();
-      }
-      return navigation.addListener("focus", open);
+  function opening(bookId: string | undefined) {
+    return {
+      id: bookId,
+      subscribe: openOnFocus({
+        bookId,
+        navigation,
+        bookById,
+        loadFile,
+        openBook,
+        markOpened,
+        onFailure,
+      }),
     };
   }
-  const [opening, setOpening] = useState(() => ({
-    id,
-    subscribe: openOnFocus(id),
-  }));
-  if (opening.id !== id) {
-    setOpening({ id, subscribe: openOnFocus(id) });
+  const [current, setCurrent] = useState(() => opening(id));
+  if (current.id !== id) {
+    setCurrent(opening(id));
   }
-  useSubscription(opening.subscribe);
+  useSubscription(current.subscribe);
 }
 
 export default function ReaderScreen() {
