@@ -1,4 +1,9 @@
-import type { Book, Chapter, ContentNode } from "@/features/books/book";
+import {
+  isWebNovel,
+  type Book,
+  type Chapter,
+  type ContentNode,
+} from "@/features/books/book";
 import { siteById, siteOf, webSites } from "./sites";
 import type { WebEpisode, WorkToc } from "./sites/site";
 
@@ -102,6 +107,53 @@ export function mergeToc(book: Book, toc: WorkToc, tocUrl?: string): Book {
     chapters: paged
       ? paged.arrange(book.chapters, episodes, toc, tocUrl)
       : episodes,
+    // ページ分けされた一覧は作品の一部だけ: 数は話のページから分かる。
+    episodeCount: paged ? book.episodeCount : episodes.length,
+  };
+}
+
+/** 章が作品の何話目か。全部の数は、分かっているときだけ。 */
+export interface EpisodePosition {
+  number: number;
+  total?: number;
+}
+
+/**
+ * 読んでいる章が、作品の何話目か。ファイルの作品はすべての章を持つので、
+ * 並びから数える。Web 小説は、目次か話のページから数が分かったときだけ:
+ * 目次を取得する前の本は読んだ話しか持たず、並びは作品の順番ではない。
+ * 分からなければ undefined。
+ */
+export function episodePosition(
+  book: Book,
+  chapterIndex: number,
+): EpisodePosition | undefined {
+  const chapter = book.chapters[chapterIndex];
+  if (!chapter || isTocMarker(chapter)) {
+    return undefined;
+  }
+  if (!isWebNovel(book)) {
+    return { number: chapterIndex + 1, total: book.chapters.length };
+  }
+  const paged = siteById(book.source)?.pagedToc;
+  if (paged) {
+    const number = paged.numberOf(chapter);
+    if (number === undefined) {
+      return undefined;
+    }
+    const total = book.episodeCount;
+    return total !== undefined && total >= number
+      ? { number, total }
+      : { number };
+  }
+  if (book.episodeCount === undefined) {
+    return undefined;
+  }
+  const episodes = book.chapters.filter((item) => !isTocMarker(item));
+  return {
+    number: episodes.indexOf(chapter) + 1,
+    // 目次の後に公開された話が、次の話としてつながっていることがある。
+    total: Math.max(book.episodeCount, episodes.length),
   };
 }
 
@@ -181,6 +233,7 @@ export function episodeToBook(
     title: episode.workTitle,
     author: episode.author,
     url: episode.url,
+    episodeCount: episode.episodeCount,
     chapters: [
       {
         id: episode.episodeId,

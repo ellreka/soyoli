@@ -16,6 +16,7 @@ import {
 import type { Book, ContentNode } from "@/features/books/book";
 import {
   episodeContent,
+  episodePosition,
   episodeToBook,
   mayBeEpisodeUrl,
   mergeToc,
@@ -293,6 +294,8 @@ describe("episode pages", () => {
       title: "テスト作品",
       author: "作者名",
       url: narouEpisodeUrl,
+      // ページの「2/3」から。
+      episodeCount: 3,
       chapters: [
         {
           id: "2",
@@ -586,5 +589,77 @@ describe("table of contents", () => {
     ]);
     expect(second.chapters[0].url).toBe(page(1));
     expect(second.chapters.at(-1)?.url).toBe(page(4));
+  });
+});
+
+describe("episode position", () => {
+  const web = (
+    source: Book["source"],
+    ids: string[],
+    episodeCount?: number,
+  ): Book => ({
+    id: `${source}-work`,
+    source,
+    title: "テスト作品",
+    author: "作者名",
+    episodeCount,
+    chapters: ids.map((id) => ({
+      id,
+      title: `第${id}話`,
+      url: id.startsWith("https://") ? id : `https://example.com/${id}/`,
+      content: [],
+    })),
+  });
+
+  it("counts a file's chapters by their order", () => {
+    const book: Book = {
+      id: "file-1",
+      source: "file",
+      title: "本",
+      author: "",
+      chapters: ["a", "b", "c"].map((id) => ({ id, title: id, content: [] })),
+    };
+    expect(episodePosition(book, 1)).toEqual({ number: 2, total: 3 });
+    expect(episodePosition(book, 3)).toBeUndefined();
+  });
+
+  it("reads a narou episode's number from its id and the total from its page", () => {
+    const episode = parseEpisode(narouEpisodeHtml, narouEpisodeUrl)!;
+    expect(episode.episodeCount).toBe(3);
+    const toc = parseToc(narouTocHtml, "https://ncode.syosetu.com/n1234ab/");
+    const book = episodeToBook(episode, toc);
+    const at = book.chapters.findIndex((chapter) => chapter.id === "2");
+    expect(episodePosition(book, at)).toEqual({ number: 2, total: 3 });
+    // 次の目次ページの行は話ではない。
+    expect(episodePosition(book, book.chapters.length - 1)).toBeUndefined();
+  });
+
+  it("shows only the number of a narou episode until its total is known", () => {
+    const book = web("narou", ["250"]);
+    expect(episodePosition(book, 0)).toEqual({ number: 250 });
+  });
+
+  it("has no position for a narou short story", () => {
+    const episode = parseEpisode(narouShortHtml, narouShortUrl)!;
+    expect(episodePosition(episodeToBook(episode), 0)).toBeUndefined();
+  });
+
+  it("counts a whole-work TOC, but not a book that has only what was read", () => {
+    // 目次を取得する前: 並びは作品の順番ではない。
+    const restored = web("kakuyomu", ["10", "20"]);
+    expect(episodePosition(restored, 0)).toBeUndefined();
+    const merged = mergeToc(restored, {
+      entries: ["10", "20", "30"].map((id) => ({
+        id,
+        title: `第${id}話`,
+        url: `https://example.com/${id}/`,
+      })),
+    });
+    expect(episodePosition(merged, 1)).toEqual({ number: 2, total: 3 });
+  });
+
+  it("includes episodes published after the TOC was fetched", () => {
+    const book = web("hameln", ["1", "2", "3"], 2);
+    expect(episodePosition(book, 2)).toEqual({ number: 3, total: 3 });
   });
 });

@@ -144,6 +144,12 @@ export type Book = {
    */
   file?: string;
   chapters: Chapter[];
+  /**
+   * Web 小説の話の数。目次（作品全体を 1 ページに載せるサイト）か、話の
+   * ページ（なろうの「2/3」）から分かったときだけ入る。目次と同じく保存
+   * しない。
+   */
+  episodeCount?: number;
 };
 
 /**

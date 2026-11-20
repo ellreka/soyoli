@@ -58,6 +58,12 @@ function authorOf(header: HtmlElement | null): string {
   return index < 0 ? "" : text.slice(index + "作者：".length).trim();
 }
 
+/** 話のページの「2/3」から、作品の話の数（3）。形が違えば undefined。 */
+function countOf(text: string): number | undefined {
+  const count = Number(/^\s*\d+\s*\/\s*(\d+)\s*$/.exec(text)?.[1]);
+  return Number.isInteger(count) && count > 0 ? count : undefined;
+}
+
 /**
  * 連載の話（`/n0000aa/1/`）と短編（`/n0000aa/`）は、同じ `p-novel__body` の
  * マークアップを使う。連載の目次にはそれがない。
@@ -130,6 +136,7 @@ function parseNarouEpisode(
     preface: preface ? toContent(preface.children, url) : [],
     body: toContent(main.children, url),
     afterword: afterword ? toContent(afterword.children, url) : [],
+    episodeCount: countOf(textOf(findByClass(document, "p-novel__number"))),
     previousUrl: pager("c-pager__item--before"),
     nextUrl: pager("c-pager__item--next"),
   };
@@ -241,6 +248,13 @@ const pagedToc: PagedToc = {
       }
     }
     return sorted([...episodes, ...rows]);
+  },
+  // 話の id は、そのまま作品の中の番号になっている。
+  numberOf(chapter) {
+    const number = Number(chapter.id);
+    return !isMarker(chapter) && Number.isInteger(number) && number > 0
+      ? number
+      : undefined;
   },
   // その話のページをすでに行が覆っていれば、何も足さない。
   chainNext(chapters, next) {

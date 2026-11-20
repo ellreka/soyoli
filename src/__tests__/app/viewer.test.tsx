@@ -81,6 +81,8 @@ it("changes playback settings inside the viewer and returns there from the mini 
     "もう一つの文。",
   );
   expect(screen.getByText("6 / 13 字")).toBeOnTheScreen();
+  // 作品の 2 話のうち 1 話目。
+  expect(screen.getByText("1 / 2 話")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "音声設定" }));
   expect(
     screen

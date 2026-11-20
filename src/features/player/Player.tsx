@@ -12,6 +12,7 @@ import { colors, gutter } from "@/constants/theme";
 import { usePlayback } from "./Playback";
 import type { SleepTimer } from "./useSleepTimer";
 import { chapterProgress, positionAt } from "@/features/books/paragraphs";
+import { episodePosition } from "@/features/web/episode";
 import { Transport } from "./Transport";
 
 const thumb = 14;
@@ -190,13 +191,24 @@ export function Player({ onOpen, onSeek }: PlayerProps) {
   if (!state.book) {
     return null;
   }
+  const episode = episodePosition(state.book, state.chapterIndex);
 
   return (
     <View testID="viewer-player" style={styles.dock}>
       <Scrubber read={read} total={total} onSeek={onSeek} />
-      <Text style={styles.count}>
-        {total ? `${count(read)} / ${count(total)} 字` : "本文なし"}
-      </Text>
+      {/* 左は話の中の位置（上のシークバーと同じ）、右は作品の中の位置。 */}
+      <View style={styles.counts}>
+        <Text style={styles.count}>
+          {`${count(read)} / ${count(total)} 字`}
+        </Text>
+        {episode && (
+          <Text style={styles.count}>
+            {episode.total
+              ? `${count(episode.number)} / ${count(episode.total)} 話`
+              : `${count(episode.number)} 話`}
+          </Text>
+        )}
+      </View>
       <View style={styles.bar}>
         <View style={styles.side}>
           <TimerPill
@@ -253,6 +265,7 @@ const styles = StyleSheet.create({
     borderRadius: thumb / 2,
     backgroundColor: colors.text,
   },
+  counts: { flexDirection: "row", justifyContent: "space-between" },
   count: {
     color: colors.secondary,
     fontWeight: "400",

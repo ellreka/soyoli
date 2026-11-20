@@ -30,6 +30,8 @@ export interface WebEpisode {
   preface: ContentNode[];
   body: ContentNode[];
   afterword: ContentNode[];
+  /** 作品の話の数。ページが示していれば（なろうの「2/3」）。 */
+  episodeCount?: number;
   /** 作品の話の一覧。取れるときは、ページと一緒に取得する。 */
   toc?: WorkToc;
   previousUrl?: string;
@@ -64,6 +66,11 @@ export interface PagedToc {
     toc: WorkToc,
     tocUrl: string | undefined,
   ) => Chapter[];
+  /**
+   * 章が作品の何話目か（1 始まり）。本はいくつかのページしか持たないので、
+   * 章の並びからは数えられない。話でない章（ページの行）では undefined。
+   */
+  numberOf: (chapter: Chapter) => number | undefined;
   /** `next`（まだ章の中にない話）にたどり着けるようにした章。 */
   chainNext: (chapters: Chapter[], next: Chapter) => Chapter[];
 }

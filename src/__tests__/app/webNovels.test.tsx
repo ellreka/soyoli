@@ -222,10 +222,14 @@ it("loads the next episode on demand when the arrows cross chapters", async () =
   await renderRouter(routes, { initialUrl: "/reader?id=narou-n1234ab" });
   await screen.findByTestId("viewer-player");
   expect(screen.getByRole("header", { name: "第二話" })).toBeOnTheScreen();
+  // 話の数はまだ分からない: 何話目かだけ。
+  expect(screen.getByText("2 話")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "次の話" }));
   expect(screen.getByRole("header", { name: "第三話" })).toBeOnTheScreen();
   // ページを取得している最中。ほかの話の本文は先読みしていない。
   expect(await screen.findByText("次の話を取得しています…")).toBeOnTheScreen();
+  // 本文が届くまで、話の文字数は 0。
+  expect(screen.getByText("0 / 0 字")).toBeOnTheScreen();
   expect(fetchSpy).toHaveBeenCalledWith(
     "https://ncode.syosetu.com/n1234ab/3/",
     {
@@ -241,6 +245,8 @@ it("loads the next episode on demand when the arrows cross chapters", async () =
     expect(screen.queryByText("次の話を取得しています…")).toBeNull();
   });
   expect(screen.getByRole("button", { name: "再生" })).toBeEnabled();
+  // 取得したページが作品の話の数を示す（フィクスチャは「2/3」）。
+  expect(screen.getByText("3 / 3 話")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "再生" }));
   // まず話のタイトルが読まれ、それから本文。
   expect(Speech.speak).toHaveBeenLastCalledWith(

@@ -133,6 +133,7 @@ export function ChapterLoaderProvider({ children }: { children: ReactNode }) {
         if (episode) {
           const updated: Book = {
             ...current,
+            episodeCount: episode.episodeCount ?? current.episodeCount,
             chapters: chainNextEpisode(
               current.chapters.map((item) =>
                 item.url === url
