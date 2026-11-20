@@ -3,12 +3,6 @@ import { StyleSheet, View } from "react-native";
 import { IconButton } from "./IconButton";
 import { NativeSlider, type NativeSliderProps } from "./NativeSlider";
 
-/**
- * 前にマイナス、後ろにプラスのボタンが付いたスライダー: スライダーで値の
- * 近くまで行き、ボタンで 1 刻みずつ動かす。知らせる値はどれも刻みの整数倍で、
- * 浮動小数の誤差がない（1.7000000001 ではなく 1.7）。`step` は 1 未満の
- * 小数（0.1、0.25）。
- */
 export function StepSlider({
   accessibilityLabel,
   value,
@@ -64,8 +58,6 @@ export function StepSlider({
 }
 
 const styles = StyleSheet.create({
-  // ボタンは 20pt のシンボルを囲む 44pt: その差だけ外へ出すと、シンボルが
-  // 行の上下の文字と揃い、その分の幅をスライダーが使える。
   row: { flexDirection: "row", alignItems: "center", marginHorizontal: -12 },
   slider: { flex: 1, minWidth: 0 },
 });

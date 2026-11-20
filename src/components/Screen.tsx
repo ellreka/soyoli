@@ -16,20 +16,14 @@ import { IconButton } from "./IconButton";
 
 interface ScreenProps {
   title: string;
-  /** 内容についての事実（件数）。ページの説明ではない。 */
   subtitle?: string;
-  /** タイトルの上に戻るボタンを出す。別のページから開いたページ用。 */
   onBack?: () => void;
-  /** タイトルの右に出すアイコンボタン。 */
   actions?: ReactNode;
-  /** 引き下げてページを読み込み直せるようにする。 */
   onRefresh?: () => void;
-  /** 読み込み直しの最中かどうか。スピナーを出したままにする。 */
   refreshing?: boolean;
   children: ReactNode;
 }
 
-/** 内容と一緒にスクロールして消える、大きなタイトルのあるページ。 */
 export function Screen({
   title,
   subtitle,
@@ -39,7 +33,6 @@ export function Screen({
   refreshing = false,
   children,
 }: ScreenProps) {
-  // このページのあるタブを押すと、先頭までスクロールして戻る。
   const scroll = useRef<ScrollViewInstance>(null);
   useScrollToTop(scroll);
   return (
@@ -86,7 +79,6 @@ interface SectionProps {
   children: ReactNode;
 }
 
-/** 画面の中の、ラベルの付いた内容のまとまり。 */
 export function Section({ title, children }: SectionProps) {
   return (
     <View style={styles.section}>
@@ -123,7 +115,6 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     paddingBottom: 32,
   },
-  // アイコンのタップ領域を外へ出して、字形がタイトルと揃うようにする。
   back: { marginLeft: -12, marginBottom: -20 },
   header: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   titles: { flex: 1, gap: 4 },

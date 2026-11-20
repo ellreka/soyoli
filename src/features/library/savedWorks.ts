@@ -7,30 +7,20 @@ import {
   type WebSource,
 } from "@/features/books/book";
 
-/**
- * 起動をまたいで Web 小説について保存するもの。本棚にあるものも、読書履歴に
- * あるものも同じ: メタ情報と最後に読んだ話で、本文は決して保存しない。
- * 話は、作品を開いたときに取得し直す。
- */
 export interface SavedWork {
   id: string;
   source: WebSource;
   title: string;
   author: string;
   episode: { id: string; title: string; url: string };
-  /** 作品を最後に読んだ時刻（ms）。履歴から消えると、なくなる。 */
   readAt?: number;
-  /** 履歴のためだけに保存している作品では false と書く。 */
   bookmarked?: false;
 }
 
-/** 読書履歴の各作品を最後に読んだ時刻（ms）。本の id ごと。 */
 export type History = Record<string, number>;
 
-/** 履歴に入る作品の数。古いものから落ちる。 */
 export const historyLimit = 100;
 
-/** 作品を `time` に読んだことを加えた履歴。新しいものだけに切り詰める。 */
 export function withRead(
   history: History,
   bookId: string,
@@ -42,19 +32,15 @@ export function withRead(
   return Object.fromEntries(entries);
 }
 
-/** 最後に読んだ話の章 id。本の id ごと。 */
 export type LastRead = Record<string, string>;
 
-/** Web 小説と、それぞれについて覚えていること。 */
 export interface Works {
   books: Book[];
   lastRead: LastRead;
-  /** 本棚にある作品の id。履歴ができる前のファイルには、これしかない。 */
   bookmarked: string[];
   history: History;
 }
 
-/** Web 小説で最後に読んだ話。なければ、追加したときの話。 */
 export function lastReadChapter(
   book: Book,
   lastRead: LastRead,
@@ -66,9 +52,6 @@ export function lastReadChapter(
   return book.chapters.find((item) => item.url && item.url === book.url);
 }
 
-/**
- * 本棚か履歴にある Web 小説を、ディスクに書く形にしたもの。
- */
 export function toSavedWorks(
   books: Book[],
   lastRead: LastRead,
@@ -121,7 +104,6 @@ function toSavedWork(value: unknown): SavedWork | null {
     typeof author !== "string" ||
     !isText(last.id) ||
     !isText(last.title) ||
-    // URL は開くときに取得される: 対応サイトのページだけを受け付ける。
     !isText(last.url) ||
     !mayBeEpisodeUrl(last.url)
   ) {
@@ -129,7 +111,6 @@ function toSavedWork(value: unknown): SavedWork | null {
   }
   const read =
     typeof readAt === "number" && Number.isFinite(readAt) ? readAt : undefined;
-  // 本棚にも履歴にも残さないもの: 復元する理由がない。
   if (bookmarked === false && read === undefined) {
     return null;
   }
@@ -144,10 +125,6 @@ function toSavedWork(value: unknown): SavedWork | null {
   };
 }
 
-/**
- * 保存した作品を本にする。どれも最後に読んだ話だけを持ち、本文はまだない。
- * ファイルの中の壊れたものは落とす。
- */
 export function fromSavedWorks(value: unknown): Works {
   const books: Book[] = [];
   const lastRead: LastRead = {};
@@ -177,11 +154,6 @@ export function fromSavedWorks(value: unknown): Works {
   return { books, lastRead, bookmarked, history };
 }
 
-/**
- * 取り込む作品の読みかけ（最後に読んだ話とその中の位置）を採るかどうか。
- * 端末にない作品は採る。ある作品は、取り込む側のほうが後に読まれていれば
- * 採る。開いている作品（`openId`）は今読んでいるものなので、採らない。
- */
 export function takesProgress(
   current: Works,
   incoming: Works,
@@ -199,11 +171,6 @@ export function takesProgress(
   );
 }
 
-/**
- * 端末の作品に、バックアップの作品（`incoming`）を足したもの。端末にしか
- * ない作品は残る。両方にある作品は本棚に入り、読みかけは `takesProgress`
- * が選んだ側のものになる。
- */
 export function mergeWorks(
   current: Works,
   incoming: Works,
@@ -216,7 +183,6 @@ export function mergeWorks(
   const bookmarked = [...current.bookmarked];
   for (const book of incoming.books) {
     const known = current.books.find((item) => item.id === book.id);
-    // 同じ id のファイル由来の作品: 別のものなので触らない。
     if (known && !isWebNovel(known)) {
       continue;
     }
@@ -233,10 +199,8 @@ export function mergeWorks(
     if (!known) {
       added.push(book);
     } else if (known.chapters.every((chapter) => !chapter.content.length)) {
-      // まだ本文を持っていない: 取り込む側の話で置き換えても失うものがない。
       books = books.map((item) => (item === known ? book : item));
     } else if (!known.chapters.some((chapter) => chapter.id === episode)) {
-      // 読み込み済みの話の中に、その話がない: 今のままにする。
       continue;
     }
     lastRead[book.id] = episode;

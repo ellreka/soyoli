@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useSubscription } from "@/lib/subscription";
 import { NativeRow } from "@/components/NativeRow";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
@@ -38,7 +39,6 @@ interface ReaderMenuProps {
   onClose: () => void;
 }
 
-/** 「…」ボタンの下のポップオーバー。外側のどこをタップしても閉じる。 */
 function ReaderMenu({ items, onClose }: ReaderMenuProps) {
   return (
     <>
@@ -71,36 +71,23 @@ interface ChapterBodyProps {
   paragraphIndex: number;
   autoScroll: boolean;
   onManualScroll: () => void;
-  /** 読む位置を段落へ動かす。そこから読み始めることもできる。 */
   onSeek: (paragraphIndex: number, play: boolean) => void;
-  /** 長押しされた段落のアクションを開く。 */
   onMenu: (paragraphIndex: number) => void;
 }
 
-/**
- * リーダーの表示設定で組んだ章の本文。または、まだ読み込んでいない Web の
- * 話の取得状態。
- */
 function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
   const { settings } = useDisplay();
-  // 章は何百もの段落でできていて、すべてを一度に描画する。ビューアーの
-  // 最初の render からそれを外すと、ビューアーがすぐに現れ（スライドして
-  // 入ってき）て、本文は次のフレームの render で続く。それまでは読み込み中の
-  // 印を出す。useDeferredValue で遅らせてはならない: 起動後に最初に開いた
-  // とき、Android でリストの行の onLayout が一度も届かず、行の位置が
-  // わからないので、読む位置へ動かせなくなる。
-  // 話を移ったときも同じ（呼び出し側が話ごとに作り直す）: 題名と読み込み中の
-  // 印が先に出て、長い本文を組む間、押したボタンが効いていないように見えない。
+  // WORKAROUND: useDeferredValue で遅らせると、起動後に最初に開いたとき Android でリストの行の onLayout が一度も届かず、読む位置へ動かせない。長い本文は次のフレームで組む。
   const [showText, setShowText] = useState(false);
-  useEffect(() => {
+  const [showNextFrame] = useState(() => (): (() => void) => {
     const frame = requestAnimationFrame(() => {
       setShowText(true);
     });
     return () => {
       cancelAnimationFrame(frame);
     };
-  }, []);
-  // 1 回のタップで読み始めるか、1 回目で位置を動かして 2 回目で読み始めるか。
+  });
+  useSubscription(showText ? null : showNextFrame);
   const playOnTap = settings.playOn === "tap";
   const palette = themes[settings.theme];
   const note = [styles.statusText, { color: palette.dimmed }];
@@ -157,13 +144,11 @@ interface ReaderProps {
   onClose: () => void;
 }
 
-/** 共通のビューアー: 章の本文と、その下に固定したプレーヤー。 */
 export function Reader({ book, onClose }: ReaderProps) {
   const { state, seekParagraph } = usePlayback();
   const { failedChapter, expandToc, reload } = useChapterLoader();
   const [sheet, setSheet] = useState<Sheet>(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  // アクションを表示している、長押しされた段落。
   const [menuAt, setMenuAt] = useState<{
     chapterId: string;
     index: number;
@@ -182,20 +167,15 @@ export function Reader({ book, onClose }: ReaderProps) {
   }
   const chapter = book.chapters[state.chapterIndex];
   const bookmarked = isBookmarked(book.id);
-  // メニューが出ている間に、読み上げが別の章へ進むことがある。そのとき
-  // メニューはもう当てはまらない。
   const menuParagraph =
     menuAt && menuAt.chapterId === chapter?.id ? menuAt.index : null;
   const paragraphText =
     menuParagraph === null
       ? undefined
       : state.chapters[state.chapterIndex]?.[menuParagraph]?.text.trim();
-  // 元のページは、いま開いている話のページ。話が自分のページを持たない
-  // ときだけ、作品のページにする。
   const url = chapter?.url ?? book.url;
   const menuItems: MenuItem[] = [
     {
-      // この作品に適用される読みと、作品が使う辞書。
       label: "読み方辞書",
       onPress: () => {
         router.push({
@@ -204,19 +184,15 @@ export function Reader({ book, onClose }: ReaderProps) {
         });
       },
     },
-    // 戻る先の元ページがあるのは Web 小説だけ。
     ...(url
       ? [
           {
             label: "元のサイトで開く",
             onPress: () => {
-              // リーダーは、その下のタブにあるブラウザに場所を譲る。
               if (router.canGoBack()) {
                 router.back();
                 openInBrowser(url);
               } else {
-                // 直リンクで開かれ、リーダーの下にまだタブがない: ブラウザと
-                // そのタブが、リーダーに取って代わる。
                 router.replace({
                   pathname: "/home/browse",
                   params: browseParams(url),
@@ -237,11 +213,8 @@ export function Reader({ book, onClose }: ReaderProps) {
 
   return (
     <SafeAreaView style={styles.screen}>
-      {/* すべてをセーフエリアの中の 1 つの箱に入れる。どのプラットフォーム
-      でも、メニューの位置をステータスバーの下から測れるようにするため。 */}
       <View style={styles.inner}>
         <View style={styles.header}>
-          {/* 矢印とタイトルは 1 つのボタン: どちらもビューアーを閉じる。 */}
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="ビューアーを閉じる"
@@ -265,7 +238,6 @@ export function Reader({ book, onClose }: ReaderProps) {
             </View>
           </Pressable>
           {isWebNovel(book) && (
-            // Web 小説は、ブックマークするまで本棚に入れずに読める。
             <IconButton
               icon={bookmarked ? "bookmark-on" : "bookmark"}
               label={bookmarked ? "本棚から削除" : "本棚に追加"}
@@ -305,8 +277,6 @@ export function Reader({ book, onClose }: ReaderProps) {
           ]}
         >
           <ChapterBody
-            // 話ごとに作り直す: 話を移ると、まず読み込み中の印を出し、本文は
-            // 次のフレームで組む。長い話でも、ボタンを押してすぐ移ったと分かる。
             key={chapter?.id}
             chapter={chapter}
             failed={failedChapter === chapter?.url}
@@ -324,8 +294,6 @@ export function Reader({ book, onClose }: ReaderProps) {
             }}
           />
           {!autoScroll && (
-            // 素の React Native のピル: 本文の上に浮かぶもので、プラットフォームの
-            // ボタンはそういう用途に作られていない。
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="読み上げ位置に戻る"
@@ -341,8 +309,6 @@ export function Reader({ book, onClose }: ReaderProps) {
         </View>
         <Player
           onOpen={setSheet}
-          // シークバーで動かした先は、本文でも見せる: 手でスクロールして
-          // 追従が切れていても、そこへ戻す。
           onSeek={() => {
             setAutoScroll(true);
           }}
@@ -372,7 +338,6 @@ export function Reader({ book, onClose }: ReaderProps) {
                   Clipboard.setStringAsync(text).catch(() => undefined);
                 }}
                 onRegister={() => {
-                  // 段落はエディタの初期値にすぎない。
                   setSheet(null);
                   router.push({
                     pathname: "/dictionary",

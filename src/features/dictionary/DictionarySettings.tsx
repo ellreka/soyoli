@@ -15,12 +15,6 @@ function open(id: string): void {
   router.push({ pathname: "/settings/dictionary-set", params: { id } });
 }
 
-/**
- * 辞書をネイティブのリストに、2 つのグループで並べる。最初は全作品に
- * 適用されるもの: アプリ自身の辞書、続いて利用者の共通辞書。次に名前付きの
- * 辞書で、読みの件数と使っている作品の数を添える。行を押すと辞書のページが
- * 開く。
- */
 export function DictionarySettings() {
   const { dictionary } = useDictionary();
   return (

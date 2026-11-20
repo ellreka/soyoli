@@ -7,10 +7,8 @@ import {
   savedFileBooks,
 } from "@/features/books/import";
 
-/** 偽の端末が持っているもの。パスごと。 */
 const mockDisk = new Map<string, Uint8Array | string>();
 let mockPicked: { name: string; bytes: Uint8Array } | null = null;
-/** いくつも選んだとき。これがあれば `mockPicked` より先に使う。 */
 let mockPickedFiles: { name: string; bytes: Uint8Array }[] | null = null;
 
 jest.mock("expo-file-system", () => {
@@ -89,12 +87,10 @@ function epub(title: string, cover = false, metadata = ""): Uint8Array {
   );
 }
 
-/** ストアのフォルダにあるファイル。索引は除く。 */
 function stored(): string[] {
   return [...mockDisk.keys()].filter((path) => path.startsWith("doc/books/"));
 }
 
-/** ファイルを 1 つ取り込む: 入った作品を返し、入らなければその理由で投げる。 */
 async function importFile() {
   const result = await importFiles();
   if (!result) {
@@ -121,11 +117,9 @@ it("keeps a mockPicked file on the device, with its cover as an image of its own
     author: "著者",
     file: expect.stringMatching(/^[a-z0-9]+\.epub$/),
   });
-  // 表紙は今ではファイルで、索引の中の何メガバイトもの文字列ではない。
   expect(book?.cover).toMatch(/^doc\/books\/[a-z0-9]+c\.png$/);
   expect(stored()).toHaveLength(2);
   expect(mockDisk.get("doc/files.json")).not.toContain("base64");
-  // 次の起動では、本棚に作品があるが本文はなく…
   expect(savedFileBooks()).toEqual([
     {
       id: "novel.epub",
@@ -137,14 +131,12 @@ it("keeps a mockPicked file on the device, with its cover as an image of its own
       chapters: [],
     },
   ]);
-  // …本文は、作品を開いたときに保存しておいたファイルから来る。
   const opened = await openSavedFile("novel.epub");
   expect(opened.chapters.map((chapter) => chapter.title)).toEqual(["第一章"]);
   expect(opened.cover).toBe(book?.cover);
 });
 
 it("knows a file by its contents when its name does not say what it is", async () => {
-  // Android のピッカーは、ファイル名の代わりにドキュメント ID を渡してくる。
   mockPicked = { name: "msf%3A31", bytes: epub("名前のない本") };
   const book = await importFile();
   expect(book?.id).toBe("名前のない本.epub");
@@ -158,7 +150,6 @@ it("replaces what was kept when a file of the same name is taken in again", asyn
   mockPicked = { name: "novel.epub", bytes: epub("改訂版") };
   await importFile();
   expect(loadFiles().map((file) => file.title)).toEqual(["改訂版"]);
-  // 最初のコピーとその表紙は消えている。
   expect(stored()).toHaveLength(1);
 });
 
@@ -169,7 +160,6 @@ it("keeps the series a file names, and catches up on a work taken in before it d
   const series = { name: "銀河の旅", position: 2 };
   expect((await importFile())?.series).toEqual(series);
   expect(savedFileBooks()[0].series).toEqual(series);
-  // シリーズを保存する前の索引: 開くとファイルから読み直して、書き足す。
   const index = JSON.parse(mockDisk.get("doc/files.json") as string) as {
     series?: unknown;
   }[];
@@ -178,7 +168,6 @@ it("keeps the series a file names, and catches up on a work taken in before it d
   expect(savedFileBooks()[0].series).toBeUndefined();
   expect((await openSavedFile("novel.epub")).series).toEqual(series);
   expect(savedFileBooks()[0].series).toEqual(series);
-  // 形の違うシリーズは落とす。
   mockDisk.set(
     "doc/files.json",
     JSON.stringify([{ ...index[0], series: { name: 3 } }]),
@@ -205,7 +194,6 @@ it("takes in several files at once, and keeps the rest when one cannot be read",
     [1, 3],
     [2, 3],
   ]);
-  // 本棚が見せる形で返る: 本文は開いたときに読む。
   expect(result?.added.every((book) => book.chapters.length === 0)).toBe(true);
   expect(
     savedFileBooks()

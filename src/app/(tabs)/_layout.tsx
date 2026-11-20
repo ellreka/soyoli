@@ -7,7 +7,6 @@ import { colors } from "@/constants/theme";
 import { ImportNotice } from "@/features/library/ImportNotice";
 import { MiniPlayer } from "@/features/player/MiniPlayer";
 
-/** 左から右の順。本棚が index ルートなので、アプリはここで開く。 */
 const tabs: { name: string; title: string; icon: IconName }[] = [
   { name: "home", title: "ホーム", icon: "home" },
   { name: "index", title: "本棚", icon: "library" },
@@ -44,8 +43,6 @@ export default function TabLayout() {
         <Tabs.Screen
           key={tab.name}
           name={tab.name}
-          // 今いるタブを押すと、そのタブの最初のページに戻り（ブラウザや設定の
-          // ページを閉じる）、そのページを先頭までスクロールする。
           options={{
             title: tab.title,
             tabBarAccessibilityLabel: tab.title,

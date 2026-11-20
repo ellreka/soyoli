@@ -6,21 +6,14 @@ import { Icon, type IconName } from "./Icon";
 
 export interface IconButtonProps {
   icon: IconName;
-  /** スクリーンリーダーが読む。ボタンには見える文字がない。 */
   label: string;
   size?: number;
   color?: ColorValue;
   disabled?: boolean;
-  /** この直径の、丸く塗りつぶしたボタン: 主要なアクション（再生）。 */
   filled?: number;
   onPress?: () => void;
 }
 
-/**
- * 44pt のアイコンだけのボタン。このファイルは React Native 版で、Web と
- * テスト用。iOS と Android は、隣のファイルでプラットフォーム自身のボタン
- * （Expo UI）を描く。
- */
 export function IconButton({
   icon,
   label,

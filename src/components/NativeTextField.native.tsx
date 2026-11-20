@@ -6,7 +6,6 @@ import type { NativeTextFieldProps } from "./NativeTextField";
 const stretch = { flex: 1 };
 const vertical = { vertical: true };
 
-/** iOS と Android: プラットフォームのテキストフィールド（SwiftUI / Material 3）。 */
 export function NativeTextField({
   accessibilityLabel,
   defaultValue,

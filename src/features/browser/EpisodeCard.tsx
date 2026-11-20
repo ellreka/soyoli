@@ -7,16 +7,11 @@ import type { WebEpisode } from "@/features/web/episode";
 
 interface EpisodeCardProps {
   episode: WebEpisode;
-  /** 作品が本棚にあるかどうか。 */
   bookmarked: boolean;
   onBookmark: (on: boolean) => void;
   onOpen: () => void;
 }
 
-/**
- * 対応サイトの話を開いている間、ページの下に浮かぶカード: ビューアーで読む、
- * 作品をブックマークして本棚に入れる。幅は中身に合わせ、全幅にはしない。
- */
 export function EpisodeCard({
   episode,
   bookmarked,
@@ -26,7 +21,6 @@ export function EpisodeCard({
   const heading = [episode.chapterTitle, episode.title]
     .filter(Boolean)
     .join(" · ");
-  // 短編のタイトルは作品タイトルと同じ。1 回だけ出す。
   const details = [
     episode.title === episode.workTitle ? "" : episode.workTitle,
     episode.author,
@@ -34,8 +28,6 @@ export function EpisodeCard({
     .filter(Boolean)
     .join(" · ");
   return (
-    // ラッパーがページの幅いっぱいなのは、カードを中央に置くためだけ。
-    // カードの横へのタッチはページに抜ける。
     <View pointerEvents="box-none" style={styles.anchor}>
       <View testID="episode-card" style={styles.card}>
         <View style={styles.text}>
@@ -85,7 +77,6 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: colors.border,
     backgroundColor: colors.surface,
-    // どんな色のページの上でも、カードを浮き上がらせる。
     shadowColor: "#000000",
     shadowOpacity: 0.35,
     shadowRadius: 12,

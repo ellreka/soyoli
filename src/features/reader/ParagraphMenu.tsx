@@ -6,13 +6,9 @@ import { NativeList, rowModifiers } from "@/components/NativeList";
 import { colors } from "@/constants/theme";
 
 interface ParagraphMenuProps {
-  /** 長押しされた段落。 */
   text: string;
-  /** その段落から読み上げを始める。 */
   onPlay: () => void;
-  /** 選択した部分をコピーする。選択がなければ段落全体。 */
   onCopy: (text: string) => void;
-  /** 段落を初期値にして、読みを登録するフォームを開く。 */
   onRegister: () => void;
   onClose: () => void;
 }
@@ -22,18 +18,11 @@ interface Range {
   end: number;
 }
 
-/** Android: 行は Material 自身のサーフェスではなく、シートの面に載る。 */
 const rowColors = {
   containerColor: colors.surface,
   contentColor: colors.text,
 };
 
-/**
- * 1 つの段落に対するアクション。本文の長押しで出るボトムシートに表示する。
- * シートのネイティブ（Expo UI）のツリーに描画する: 段落は React Native の
- * テキストエリアに入れて一部を選択・コピーできるようにし、アクションは
- * プラットフォーム自身の行にする。アクションを選ぶとシートが閉じる。
- */
 export function ParagraphMenu({
   text,
   onPlay,
@@ -64,9 +53,7 @@ export function ParagraphMenu({
             testID="paragraph-menu-text"
             multiline
             value={text}
-            // 読み取り専用だが、選択はできる。Android は編集可能なフィールドしか
-            // 選択させないので、そこでは代わりにキーボードを出さないようにし、
-            // 制御された値がどんな編集も元に戻す。
+            // WORKAROUND: Android は編集可能なフィールドしか選択させない。キーボードを出さず、制御された値で編集を元に戻す。
             editable={Platform.OS !== "ios"}
             showSoftInputOnFocus={false}
             onSelectionChange={({ nativeEvent }) => {

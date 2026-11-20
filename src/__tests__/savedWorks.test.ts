@@ -65,7 +65,6 @@ it("keeps only bookmarked web novels: their metadata and the last-read episode, 
     },
   ]);
   expect(JSON.stringify(saved)).not.toContain("本文。");
-  // 読んだだけの Web 小説は書き込まれない。
   expect(toSavedWorks([web, epub], { [web.id]: "1" }, [])).toEqual([]);
 });
 
@@ -73,13 +72,11 @@ it("falls back to the episode a work was added with until one is marked read", (
   expect(lastReadChapter(web, {})?.id).toBe("2");
   expect(lastReadChapter(web, { [web.id]: "gone" })?.id).toBe("2");
   expect(toSavedWorks([web], {}, marked)[0].episode.id).toBe("2");
-  // 開き直す手がかりがない: その作品は一切書き込まれない。
   expect(toSavedWorks([{ ...web, url: undefined }], {}, marked)).toEqual([]);
 });
 
 it("tells a table-of-contents marker from an episode", () => {
   expect(isTocMarker(web.chapters[2])).toBe(true);
-  // まだ取得していない話と、本文が入った後の短編。
   expect(isTocMarker(web.chapters[0])).toBe(false);
   expect(
     isTocMarker({
@@ -93,7 +90,6 @@ it("tells a table-of-contents marker from an episode", () => {
 
 it("restores a saved work as a book holding only its last-read episode", () => {
   const saved = toSavedWorks([web], { [web.id]: "1" }, marked);
-  // JSON を通す。ファイルから戻ってくるときと同じ。
   expect(fromSavedWorks(JSON.parse(JSON.stringify(saved)))).toEqual({
     books: [
       {
@@ -113,7 +109,6 @@ it("restores a saved work as a book holding only its last-read episode", () => {
       },
     ],
     lastRead: { "narou-n1234ab": "1" },
-    // 履歴ができる前のファイル: 保存されていたものはすべてブックマーク済みだった。
     bookmarked: ["narou-n1234ab"],
     history: {},
   });
@@ -156,11 +151,9 @@ it("keeps a work read but not bookmarked for the history, and tells the two apar
     bookmarked: [],
     history,
   });
-  // 本棚にあり、読んでもいる: 1 つのエントリが両方を持つ。
   const both = toSavedWorks([web], {}, marked, history);
   expect(both[0]).not.toHaveProperty("bookmarked");
   expect(fromSavedWorks(both)).toMatchObject({ bookmarked: marked, history });
-  // どちらのためにも残さないものは落とす。数値でない時刻も同じ。
   expect(
     fromSavedWorks([{ ...both[0], readAt: undefined, bookmarked: false }])
       .books,
@@ -174,11 +167,9 @@ it("moves a work read again to the front and drops the oldest past the limit", (
     history = withRead(history, `work-${index}`, index + 1);
   }
   expect(Object.keys(history)).toHaveLength(historyLimit);
-  // 作品ごとに 1 行: 読み直しても時刻が動くだけ。
   history = withRead(history, "work-0", 1000);
   expect(Object.keys(history)).toHaveLength(historyLimit);
   expect(history["work-0"]).toBe(1000);
-  // 新しい作品が、いちばん前に読んだものを押し出す。
   history = withRead(history, "new", 2000);
   expect(Object.keys(history)).toHaveLength(historyLimit);
   expect(history).not.toHaveProperty("work-1");

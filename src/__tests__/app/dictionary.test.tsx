@@ -17,14 +17,12 @@ it("registers a reading from a long-pressed paragraph into the work's own dictio
     nativeEvent: {},
   });
   await fireEvent.press(screen.getByRole("button", { name: "辞書登録" }));
-  // 全画面のエディタが開く。段落はその初期値にすぎない。
   expect(screen).toHavePathname("/dictionary");
   const form = within(screen.getByTestId("dictionary-form"));
   expect(form.getByLabelText("入力")).toHaveProp(
     "defaultValue",
     "最初の本文。",
   );
-  // 作品から開くと、読みはその作品の辞書か全作品共通のどちらかに入る。
   expect(
     form.getByRole("radio", { name: "登録先 この作品の辞書" }),
   ).toBeChecked();
@@ -32,7 +30,6 @@ it("registers a reading from a long-pressed paragraph into the work's own dictio
   expect(
     form.getByRole("radio", { name: "登録先 すべての作品" }),
   ).not.toBeChecked();
-  // 読みは空でもよい（その文字は読まれなくなる）。入力は空にできない。
   await fireEvent.changeText(form.getByLabelText("入力"), "");
   expect(form.getByRole("button", { name: "登録" })).toBeDisabled();
   await fireEvent.changeText(form.getByLabelText("入力"), "本文");
@@ -40,7 +37,6 @@ it("registers a reading from a long-pressed paragraph into the work's own dictio
   await fireEvent.changeText(form.getByLabelText("読み"), "ほんもん");
   await fireEvent.press(form.getByRole("button", { name: "登録" }));
   expect(screen).toHavePathname("/reader");
-  // 作品に辞書がなかった: 作品名の辞書が作られ、その作品が使う。
   const saved = jest.mocked(saveDictionary).mock.calls.at(-1)![0] as {
     sets: { id: string; name: string; entries: unknown[] }[];
     assigned: Record<string, unknown>;
@@ -53,10 +49,8 @@ it("registers a reading from a long-pressed paragraph into the work's own dictio
     },
   ]);
   expect(saved.assigned).toEqual({
-    // 作品のタイトルは選択と一緒に保存される。
     "sample-01": { setId: saved.sets[0].id, title: book.title },
   });
-  // 画面の文字は変わらない。変わるのは読み上げられる内容だけ。
   await fireEvent.press(chapterText("最初の本文。"));
   await fireEvent.press(screen.getByRole("button", { name: "再生" }));
   expect(Speech.speak).toHaveBeenLastCalledWith(
@@ -72,19 +66,16 @@ it("lists the readings that apply to a work from the reader's menu", async () =>
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   await fireEvent.press(screen.getByRole("button", { name: "読み方辞書" }));
   expect(screen).toHavePathname("/work-dictionary");
-  // 作品自身の読み、続いて全作品共通の読み。
   expect(screen.getByText("この作品の読み（1件）")).toBeOnTheScreen();
   expect(screen.getByText("すべての作品の読み（1件）")).toBeOnTheScreen();
   expect(screen.getByText("ほんもん")).toBeOnTheScreen();
   expect(screen.getByText("いち")).toBeOnTheScreen();
-  // 読みは設定へ行かずに、ここでオフにできる。
   await fireEvent(
     screen.getByRole("switch", { name: "本文を適用" }),
     "valueChange",
     false,
   );
   expect(screen.getByRole("switch", { name: "本文を適用" })).not.toBeChecked();
-  // 行を押すとエディタが開き、閉じると一覧に戻る。
   await fireEvent.press(
     screen.getByRole("button", { name: "本文の読みを編集" }),
   );
@@ -112,31 +103,22 @@ it("chooses the dictionary a work uses from the reader's menu, sharing another w
   });
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   await screen.findByTestId("chapter-content");
-  // EPUB にもメニューがある: 辞書の選択が入っている。
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   await fireEvent.press(screen.getByRole("button", { name: "読み方辞書" }));
   expect(screen).toHavePathname("/work-dictionary");
-  // メニューから作品の読みが開く。辞書の選択はそこの 1 行。
   await fireEvent.press(screen.getByRole("button", { name: "使う辞書" }));
   expect(screen).toHavePathname("/dictionary-select");
   expect(screen.getByRole("radio", { name: "使わない" })).toBeChecked();
-  // 辞書はここからは作らない。
   expect(screen.queryByRole("button", { name: "新しい辞書を作る" })).toBeNull();
-  // 別の作品がすでに使っている辞書を選ぶと、読みを共有する。
-  // 選択が今のものと違うまでは、確定するものがない。
   expect(screen.getByRole("button", { name: "決定" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("radio", { name: "サンプルの辞書" }));
   expect(screen.getByRole("radio", { name: "サンプルの辞書" })).toBeChecked();
-  // 選んでも行に印が付くだけ: 作品の辞書は変わっておらず、画面を閉じれば
-  // 選択は捨てられる。
   expect(saveDictionary).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
   expect(screen).toHavePathname("/work-dictionary");
   expect(saveDictionary).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "使う辞書" }));
   expect(screen.getByRole("radio", { name: "使わない" })).toBeChecked();
-  // 決定 で選択が反映されて作品の読みに戻り、選んだ辞書の読みが
-  // 並ぶようになる。
   await fireEvent.press(screen.getByRole("radio", { name: "サンプルの辞書" }));
   await fireEvent.press(screen.getByRole("button", { name: "決定" }));
   expect(screen).toHavePathname("/work-dictionary");
@@ -165,8 +147,6 @@ it("shows a dictionary's works and readings, renames and deletes it", async () =
     ...savedDictionary,
     assigned: {
       ...savedDictionary.assigned,
-      // なろうの成人向けサイトで読み、今はライブラリにない作品: 辞書を選んだ
-      // ときにタイトルとページが保存されている。
       "narou-n0001aa": {
         setId: "s1",
         title: "本棚から外した作品",
@@ -176,7 +156,6 @@ it("shows a dictionary's works and readings, renames and deletes it", async () =
   };
   jest.mocked(loadDictionary).mockReturnValue(withAbsentWork);
   await renderRouter(routes, { initialUrl: "/settings/dictionary" });
-  // 一覧: 共通辞書、続いて名前付きの辞書とその件数。
   expect(
     within(await screen.findByTestId("dictionary-set-common")).getByText(
       "どの作品にも適用",
@@ -193,18 +172,13 @@ it("shows a dictionary's works and readings, renames and deletes it", async () =
   expect(
     screen.getByRole("button", { name: "本文の読みを編集" }),
   ).toBeOnTheScreen();
-  // 作品の辞書はリーダーから選ぶ。ここでは一覧に出るだけ。
   expect(screen.queryByRole("button", { name: /辞書を解除/ })).toBeNull();
-  // ライブラリにない作品は、選択と一緒に保存したタイトルとページで
-  // 表示される。
   expect(screen.getByText("本棚から外した作品")).toBeOnTheScreen();
   expect(
     screen.getByText("本棚にない作品 · novel18.syosetu.com/n0001aa"),
   ).toBeOnTheScreen();
-  // 辞書の名前変更と削除。
   await fireEvent.changeText(screen.getByLabelText("辞書の名前"), "新しい名前");
   expect(screen.getByRole("header", { name: "新しい名前" })).toBeOnTheScreen();
-  // 削除は先に確認する: キャンセルすれば辞書は残る。
   const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   const saves = jest.mocked(saveDictionary).mock.calls.length;
   await fireEvent.press(screen.getByRole("button", { name: "この辞書を削除" }));
@@ -244,7 +218,6 @@ it("edits a reading from its dictionary's page and moves it to the one for every
   const form = within(screen.getByTestId("dictionary-form"));
   expect(form.getByLabelText("入力")).toHaveProp("defaultValue", "本文");
   expect(form.getByLabelText("読み")).toHaveProp("defaultValue", "ほんもん");
-  // 出るのは自分の辞書（選択済み）と共通辞書で、ほかの辞書は出ない。
   expect(
     form.getByRole("radio", { name: "登録先 サンプルの辞書" }),
   ).toBeChecked();
@@ -254,7 +227,6 @@ it("edits a reading from its dictionary's page and moves it to the one for every
     form.getByRole("radio", { name: "登録先 すべての作品" }),
   );
   await fireEvent.press(form.getByRole("button", { name: "保存" }));
-  // 読みは移動した: コピーではなく置き換えられる。
   expect(saveDictionary).toHaveBeenLastCalledWith({
     ...savedDictionary,
     common: [{ surface: "本文", reading: "ぶん" }, ...savedDictionary.common],
@@ -264,7 +236,6 @@ it("edits a reading from its dictionary's page and moves it to the one for every
     ],
   });
   expect(screen).toHavePathname("/settings/dictionary-set");
-  // 読みは辞書のページから追加でき、削除もできる。
   await fireEvent.press(screen.getByRole("button", { name: "読みを追加" }));
   const added = within(screen.getByTestId("dictionary-form"));
   await fireEvent.changeText(added.getByLabelText("入力"), "二");
@@ -282,8 +253,6 @@ it("edits a reading from its dictionary's page and moves it to the one for every
       ],
     }),
   );
-  // 読みは 入力 → 読み の形で並び、その下に説明が付く。組み込みの
-  // ものと同じ。
   expect(screen.getByText("二")).toBeOnTheScreen();
   expect(screen.getByText("に")).toBeOnTheScreen();
   expect(screen.getAllByText("→")).toHaveLength(1);
@@ -331,7 +300,6 @@ it("registers a regex reading, refusing a pattern that does not compile", async 
       savedDictionary.sets[1],
     ],
   });
-  // 正規表現として一覧に出て、正規表現として編集画面が開く。
   expect(screen.getByText("第(\\d+)話")).toBeOnTheScreen();
   expect(screen.getByText("だい$1わ")).toBeOnTheScreen();
   await fireEvent.press(
@@ -352,7 +320,6 @@ it("shows the built-in dictionary as any other, its readings switched off but no
   expect(
     screen.getByRole("header", { name: "システム辞書" }),
   ).toBeOnTheScreen();
-  // 読みは一覧に出るが、どれもエディタを開かず、追加もできない。
   expect(screen.getByText("https?://[!-~]+")).toBeOnTheScreen();
   expect(screen.getAllByText("URL省略")).toHaveLength(2);
   expect(screen.getByText("URL")).toBeOnTheScreen();
@@ -360,7 +327,6 @@ it("shows the built-in dictionary as any other, its readings switched off but no
   expect(screen.queryByRole("button", { name: /読みを編集/ })).toBeNull();
   expect(screen.queryByRole("button", { name: "読みを追加" })).toBeNull();
   expect(screen.queryByRole("button", { name: "この辞書を削除" })).toBeNull();
-  // スイッチをオフにするまで、それぞれ適用される。
   const url = { name: "URLを適用" };
   expect(screen.getByRole("switch", url)).toBeChecked();
   await fireEvent(screen.getByRole("switch", url), "valueChange", false);
@@ -390,12 +356,10 @@ it("switches a registered reading off on its dictionary's page, and an edit keep
       savedDictionary.sets[1],
     ],
   });
-  // エディタにはその選択肢がなく、選択を取り消しもしない。
   await fireEvent.press(
     screen.getByRole("button", { name: "本文の読みを編集" }),
   );
   const form = within(screen.getByTestId("dictionary-form"));
-  // （1 つだけあるスイッチは、段落をまたぐ一致のもの。）
   expect(form.getAllByRole("switch")).toHaveLength(1);
   expect(
     form.getByRole("switch", { name: "段落をまたいで一致" }),

@@ -1,4 +1,3 @@
-// Jest 用の代役: 本物のモジュールは import 時にネイティブの TurboModule を要求する。
 import { useImperativeHandle, type Ref } from "react";
 import { View } from "react-native";
 

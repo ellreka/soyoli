@@ -35,17 +35,13 @@ jest.mock("@/features/books/pdf", () => ({
 it("shows the shelf as a grid or a list, without counts or filters, and continues from the mini player", async () => {
   await renderRouter(routes);
   const tile = await screen.findByRole("link", { name: "サンプル作品を開く" });
-  // 書名の下は著者。
   expect(within(tile).getByText("サンプル著者")).toBeOnTheScreen();
-  // まだ何も開いていない: 続きから読むものがない。
   expect(screen.queryByTestId("mini-player")).toBeNull();
-  // 作品数も、入手元での絞り込みも、作品を追加するボタンもない。
   expect(screen.queryByText(/作品 ·/)).toBeNull();
   expect(screen.queryByRole("tab", { name: "なろう" })).toBeNull();
   expect(screen.queryByRole("button", { name: "作品を追加" })).toBeNull();
   expect(screen.getByRole("button", { name: "検索" })).toBeEnabled();
   expect(screen.getByRole("tab", { name: "本棚の作品" })).toBeSelected();
-  // リストは各作品についてより多くを見せ、選んだ表示は保存される。
   await fireEvent.press(
     screen.getByRole("button", { name: "リスト表示にする" }),
   );
@@ -55,20 +51,17 @@ it("shows the shelf as a grid or a list, without counts or filters, and continue
       "サンプル著者",
     ),
   ).toBeOnTheScreen();
-  // 作品がファイル由来であることは、行に書くほどのことではない。
   expect(screen.queryByText(/EPUB|ファイル/)).toBeNull();
   await fireEvent.press(
     screen.getByRole("button", { name: "グリッド表示にする" }),
   );
   expect(saveShelfView).toHaveBeenLastCalledWith("grid");
-  // メニューには、その作品について分かっていることが出る。
   await fireEvent(
     screen.getByRole("link", { name: "サンプル作品を開く" }),
     "longPress",
   );
   expect(screen.getByTestId("action-unshelve")).toBeOnTheScreen();
   expect(screen.queryByTestId("action-site")).toBeNull();
-  // EPUB の表には著者があり、サイトやアドレスはない。
   const table = within(screen.getByTestId("action-sheet-details"));
   expect(table.getByText("サンプル著者")).toBeOnTheScreen();
   expect(table.queryByText("EPUB")).toBeNull();
@@ -87,7 +80,6 @@ it("shows the shelf as a grid or a list, without counts or filters, and continue
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
-  // 「続きから」の入口はミニプレーヤーだけで、共有している位置から始まる。
   expect(
     within(screen.getByTestId("mini-player")).getByText("おわり"),
   ).toBeOnTheScreen();
@@ -99,7 +91,6 @@ it("searches the shelf by title and author, and shows everything again when clos
   seed(book, { ...book, id: "sample-02", title: "別の物語", author: "ヤマダ" });
   await renderRouter(routes);
   await screen.findByRole("link", { name: "サンプル作品を開く" });
-  // 欄は、虫めがねを押すまで出ない。
   expect(screen.queryByLabelText("作品を検索")).toBeNull();
   await fireEvent.press(screen.getByRole("button", { name: "検索" }));
   await fireEvent.changeText(screen.getByLabelText("作品を検索"), "物語");
@@ -107,7 +98,6 @@ it("searches the shelf by title and author, and shows everything again when clos
     screen.getByRole("link", { name: "別の物語を開く" }),
   ).toBeOnTheScreen();
   expect(screen.queryByRole("link", { name: "サンプル作品を開く" })).toBeNull();
-  // 著者でも探せる。ひらがなとカタカナは区別しない。
   await fireEvent.changeText(screen.getByLabelText("作品を検索"), "やまだ");
   expect(
     screen.getByRole("link", { name: "別の物語を開く" }),
@@ -163,7 +153,6 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
     author: "サンプル著者",
   };
   const read = { readAt: expect.any(Number) };
-  // 読んだだけなら履歴に残るだけ。ブックマークボタンで本棚に入る。
   expect(saveLibrary).toHaveBeenLastCalledWith([
     {
       ...work,
@@ -192,7 +181,6 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
       ...read,
     },
   ]);
-  // 先へ進むと保存される話も進む。そのタイトルは取得したページから取る。
   await fireEvent.press(screen.getByRole("button", { name: "次の話" }));
   await waitFor(() => {
     expect(saveLibrary).toHaveBeenLastCalledWith([
@@ -207,21 +195,15 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
       },
     ]);
   });
-  // 書き込むのはメタ情報だけで、話の本文は決して書かない。
   expect(JSON.stringify(jest.mocked(saveLibrary).mock.calls)).not.toContain(
     "本文",
   );
-  // 本棚には読みかけの位置が出る。
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
   const webTile = within(screen.getByRole("link", { name: "Web作品を開く" }));
   expect(webTile.getByText("第二話　出会い")).toBeOnTheScreen();
-  // タイトルは表紙の下にもある。表紙画像のない作品はカードにも
-  // すでに出ているが。
   expect(webTile.getAllByText("Web作品")).toHaveLength(2);
-  // ブックマークを外すと本棚から消えるが、作品は履歴に残り、
-  // ミニプレーヤーでも開いたまま。
   await fireEvent.press(screen.getByRole("link", { name: "ビューアーを開く" }));
   await fireEvent.press(screen.getByRole("button", { name: "本棚から削除" }));
   expect(saveLibrary).toHaveBeenLastCalledWith([
@@ -235,7 +217,6 @@ it("keeps a web novel off the shelf until it is bookmarked, then remembers it", 
   expect(
     within(screen.getByTestId("mini-player")).getByText("Web作品"),
   ).toBeOnTheScreen();
-  // 履歴には読みかけの話と一緒にまだ残っていて、本棚に戻すこともできる。
   await fireEvent.press(screen.getByRole("tab", { name: "履歴" }));
   expect(screen.getByRole("header", { name: "今日" })).toBeOnTheScreen();
   expect(
@@ -262,7 +243,6 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
     title: "取り込んだ作品",
     file: "abc123.epub",
   };
-  // 起動時、本棚には作品があるが本文はない。
   jest.mocked(savedFileBooks).mockReturnValue([{ ...kept, chapters: [] }]);
   jest.mocked(openSavedFile).mockResolvedValue(kept);
   const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
@@ -271,7 +251,6 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
     name: "取り込んだ作品を開く",
   });
   expect(openSavedFile).not.toHaveBeenCalled();
-  // 開くとファイルを 1 回だけ読み、本文を表示する。
   await fireEvent.press(tile);
   expect(openSavedFile).toHaveBeenCalledWith("novel.epub");
   expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
@@ -288,7 +267,6 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
-  // メニューには著者だけ。削除は先に確認する: ファイルも消えるため。
   await fireEvent(
     screen.getByRole("link", { name: "取り込んだ作品を開く" }),
     "longPress",
@@ -298,7 +276,6 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   expect(table.queryByText("novel.epub")).toBeNull();
   await fireEvent.press(screen.getByTestId("action-unshelve"));
   expect(removeFile).not.toHaveBeenCalled();
-  // 削除されるまでは、ミニプレーヤーから続きを読める。
   expect(
     within(screen.getByTestId("mini-player")).getByText("取り込んだ作品"),
   ).toBeOnTheScreen();
@@ -310,7 +287,6 @@ it("keeps a work taken in from a file on the shelf, reads its text when opened, 
   expect(
     screen.queryByRole("link", { name: "取り込んだ作品を開く" }),
   ).toBeNull();
-  // ミニプレーヤーも一緒に消える: 続きを読むものが残っていない。
   expect(screen.queryByTestId("mini-player")).toBeNull();
   alert.mockRestore();
 });
@@ -322,16 +298,13 @@ it("keeps the volumes of one work as a single entry, and lists them when it is o
     title: `銀河の旅 ${number}`,
     series: { name: "銀河の旅", position: number },
   });
-  // 書名が巻に見えても、シリーズを名乗らないファイルはまとめない。
   const unnamed: Book = { ...book, id: "loose.epub", title: "銀河の旅 4" };
   seed(volume(2), book, volume(1), volume(3), unnamed);
   const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   await renderRouter(routes);
-  // 3 つの巻は 1 つにまとまり、ほかの作品はそのまま。
   const entry = await screen.findByRole("button", {
     name: "銀河の旅の巻を見る",
   });
-  // 冊数は、重ねた表紙の隅に出る。
   expect(within(entry).getByText("3")).toBeOnTheScreen();
   expect(entry.props.accessibilityHint).toBe("3冊");
   expect(within(entry).getByText("サンプル著者")).toBeOnTheScreen();
@@ -342,22 +315,18 @@ it("keeps the volumes of one work as a single entry, and lists them when it is o
   expect(
     screen.getByRole("link", { name: "サンプル作品を開く" }),
   ).toBeOnTheScreen();
-  // 押すと、その巻が巻の順に並ぶ。
   await fireEvent.press(entry);
   expect(screen.getByRole("header", { name: "銀河の旅" })).toBeOnTheScreen();
   expect(screen.queryByRole("link", { name: "サンプル作品を開く" })).toBeNull();
   expect(
     screen.getAllByRole("link").map((link) => link.props.accessibilityLabel),
   ).toEqual(["銀河の旅 1を開く", "銀河の旅 2を開く", "銀河の旅 3を開く"]);
-  // 本棚は隠れているだけで、作り直されない: スクロールした位置が残る。
   const shelfScroll = screen.getByTestId("refreshable", {
     includeHiddenElements: true,
   });
-  // 戻るボタンで本棚に戻る。
   await fireEvent.press(screen.getByRole("button", { name: "戻る" }));
   expect(screen.getByTestId("refreshable")).toBe(shelfScroll);
   expect(screen.getByRole("header", { name: "本棚" })).toBeOnTheScreen();
-  // 巻は 1 冊ずつ削除する。1 冊だけになった作品は、ふつうの作品に戻る。
   await fireEvent.press(
     screen.getByRole("button", { name: "銀河の旅の巻を見る" }),
   );
@@ -390,8 +359,6 @@ it("leaves Back to the other tabs while the volumes of a work are listed", async
     series: { name: "銀河の旅", position: number },
   });
   seed(volume(1), volume(2));
-  // Android の「戻る」を押したことにする: 後から登録したものが先に受け、
-  // どれかが true を返したらそこで止まる。
   const handlers: Parameters<typeof BackHandler.addEventListener>[1][] = [];
   const listen = jest
     .spyOn(BackHandler, "addEventListener")
@@ -408,14 +375,11 @@ it("leaves Back to the other tabs while the volumes of a work are listed", async
     handlers.toReversed().some((handler) => handler({} as never));
   await renderRouter(routes);
   const entry = { name: "銀河の旅の巻を見る" };
-  // 巻の一覧での「戻る」は、本棚へ戻す。
   await fireEvent.press(await screen.findByRole("button", entry));
   await act(async () => {
     pressBack();
   });
   expect(screen.getByRole("header", { name: "本棚" })).toBeOnTheScreen();
-  // 巻の一覧を出したままほかのタブへ移ると、「戻る」はそのタブのもの:
-  // 隠れている本棚は取らず、前のタブ（巻の一覧のまま）へ戻る。
   await fireEvent.press(screen.getByRole("button", entry));
   await fireEvent.press(screen.getByLabelText("ホーム"));
   expect(screen).toHavePathname("/home");
@@ -438,7 +402,6 @@ it("reads the shelf from the device again when it is pulled down", async () => {
   jest.mocked(savedFileBooks).mockReturnValue([kept]);
   await renderRouter(routes);
   await screen.findByRole("link", { name: "取り込んだ作品を開く" });
-  // 端末に保存されているものが変わった: タイトルが新しくなり、作品が増えた。
   jest.mocked(savedFileBooks).mockReturnValue([
     { ...kept, id: "other.epub", title: "増えた作品", file: "def456.epub" },
     { ...kept, title: "直った題名" },
@@ -455,7 +418,6 @@ it("reads the shelf from the device again when it is pulled down", async () => {
   expect(
     screen.queryByRole("link", { name: "取り込んだ作品を開く" }),
   ).toBeNull();
-  // 端末に保存されなくなった作品は本棚から消える。
   jest.mocked(savedFileBooks).mockReturnValue([]);
   await act(async () => {
     screen.getByTestId("refreshable").props.refreshControl.props.onRefresh();
@@ -498,7 +460,6 @@ it("takes in files from Home onto the shelf without opening them or stopping wha
     .mocked(openSavedFile)
     .mockResolvedValue({ ...taken(2), chapters: book.chapters });
   await renderRouter(routes);
-  // 別の作品を読み上げている。
   await fireEvent.press(
     await screen.findByRole("link", { name: "サンプル作品を開く" }),
   );
@@ -513,7 +474,6 @@ it("takes in files from Home onto the shelf without opening them or stopping wha
   await fireEvent.press(
     screen.getByRole("button", { name: "ファイルを取り込む" }),
   );
-  // 何冊でも一度に入る。ビューアーは開かず、読み上げも続く。
   expect(await screen.findByText("2冊を本棚に追加しました")).toBeOnTheScreen();
   expect(screen).toHavePathname("/home");
   expect(screen.queryByTestId("viewer-player")).toBeNull();
@@ -522,17 +482,13 @@ it("takes in files from Home onto the shelf without opening them or stopping wha
   expect(
     within(screen.getByTestId("mini-player")).getByText("サンプル作品"),
   ).toBeOnTheScreen();
-  // 読めなかったファイルは、名前と理由を出す。残りは取り込まれている。
   expect(
     screen.getByText("broken.epub: ファイルを読み込めませんでした。"),
   ).toBeOnTheScreen();
-  // 知らせはミニプレーヤーの上にあり、ほかのタブでも見える。読めない
-  // ファイルがあったので、時間が経っても消えない。
   const notice = within(screen.getByTestId("import-notice"));
   expect(notice.getByText("1件は読み込めませんでした")).toBeOnTheScreen();
   await fireEvent.press(screen.getByLabelText("設定"));
   expect(screen.getByTestId("import-notice")).toBeOnTheScreen();
-  // 何冊もあるときは、知らせから本棚へ行ける。知らせはそこで閉じる。
   expect(openSavedFile).not.toHaveBeenCalled();
   await fireEvent.press(screen.getByRole("button", { name: "本棚を開く" }));
   expect(screen.queryByTestId("import-notice")).toBeNull();
@@ -562,7 +518,6 @@ it("keeps reading a file that is taken in again while it is open, from its new c
     ],
   };
   seed(paper);
-  // 取り込み直した本は新しいファイルを指し、ページの本文はまだない。
   jest.mocked(importFiles).mockResolvedValue({
     added: [
       {
@@ -593,7 +548,6 @@ it("keeps reading a file that is taken in again while it is open, from its new c
     screen.getByRole("button", { name: "ファイルを取り込む" }),
   );
   await screen.findByText("「論文」を本棚に追加しました");
-  // 読み上げは同じ段落で続く: 読んだ本文は引き継がれている。
   await waitFor(() => {
     expect(Speech.speak).toHaveBeenLastCalledWith(
       "読んだページの本文。",
@@ -605,7 +559,6 @@ it("keeps reading a file that is taken in again while it is open, from its new c
       name: "一時停止",
     }),
   ).toBeOnTheScreen();
-  // 次の章のページは、新しいファイルから読む: 古いファイルはもうない。
   const options = jest.mocked(Speech.speak).mock.calls.at(-1)![1]!;
   await act(async () => {
     (options.onDone as () => void)();
@@ -649,11 +602,9 @@ it("tells of a file taken in above the mini player, until it is closed or a whil
     );
     await screen.findByText("「取り込んだ作品」を本棚に追加しました");
   };
-  // バツで閉じる。
   await take();
   await fireEvent.press(screen.getByRole("button", { name: "知らせを閉じる" }));
   expect(screen.queryByTestId("import-notice")).toBeNull();
-  // 放っておくと、自分で消える。
   jest.useFakeTimers();
   try {
     await take();
@@ -668,7 +619,6 @@ it("tells of a file taken in above the mini player, until it is closed or a whil
   } finally {
     jest.useRealTimers();
   }
-  // 1 冊なら、知らせからそのまま開ける。本文は開いたときに読む。
   await take();
   expect(openSavedFile).not.toHaveBeenCalled();
   await fireEvent.press(
@@ -692,15 +642,15 @@ it("lists the history by day, newest first, and forgets one work or all of them"
       url: `https://ncode.syosetu.com/${id}/2/`,
     },
   });
-  jest.mocked(loadLibrary).mockReturnValue([
-    // 本棚にはあるが、履歴ができてから一度も読んでいない: 履歴には出ない。
-    saved("n0001aa", "本棚だけの作品"),
-    { ...saved("n0002aa", "昨日の作品"), readAt: now - 86_400_000 },
-    { ...saved("n0003aa", "今日の作品"), readAt: now, bookmarked: false },
-  ]);
+  jest
+    .mocked(loadLibrary)
+    .mockReturnValue([
+      saved("n0001aa", "本棚だけの作品"),
+      { ...saved("n0002aa", "昨日の作品"), readAt: now - 86_400_000 },
+      { ...saved("n0003aa", "今日の作品"), readAt: now, bookmarked: false },
+    ]);
   const alert = jest.spyOn(Alert, "alert").mockImplementation(() => {});
   await renderRouter(routes);
-  // 本棚にあるのはブックマークしたものだけ。
   await screen.findByRole("link", { name: "昨日の作品を開く" });
   expect(screen.queryByRole("link", { name: "今日の作品を開く" })).toBeNull();
   await fireEvent.press(screen.getByRole("tab", { name: "履歴" }));
@@ -712,18 +662,15 @@ it("lists the history by day, newest first, and forgets one work or all of them"
   expect(
     screen.queryByRole("link", { name: "本棚だけの作品を開く" }),
   ).toBeNull();
-  // 長押しで作品のメニューが出る。履歴から消しても本棚には残る。
   await fireEvent(
     screen.getByRole("link", { name: "昨日の作品を開く" }),
     "longPress",
   );
   expect(screen.getByTestId("action-site")).toBeOnTheScreen();
-  // メニューは作品が何であるかを表で示す。アドレスはコピーできる。
   const table = within(screen.getByTestId("action-sheet-details"));
   for (const cell of ["著者", "作者名", "読んでいる話"]) {
     expect(table.getByText(cell)).toBeOnTheScreen();
   }
-  // なろうの名前は、承諾なしには出さない: サイトの行そのものがない。
   expect(table.queryByText("サイト")).toBeNull();
   expect(screen.queryByText(/なろう/)).toBeNull();
   expect(table.getByText("第二話")).toBeOnTheScreen();
@@ -740,7 +687,6 @@ it("lists the history by day, newest first, and forgets one work or all of them"
     saved("n0002aa", "昨日の作品"),
     expect.objectContaining({ id: "narou-n0003aa", bookmarked: false }),
   ]);
-  // すべて消す操作は 1 階層下にあり、先に確認する。
   await fireEvent.press(screen.getByRole("button", { name: "履歴のメニュー" }));
   await fireEvent.press(screen.getByTestId("action-clear"));
   expect(
@@ -752,7 +698,6 @@ it("lists the history by day, newest first, and forgets one work or all of them"
   });
   expect(screen.getByText("履歴はありません")).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "履歴のメニュー" })).toBeDisabled();
-  // 履歴のためだけに保存していた作品は、もう書き込まれない。
   expect(saveLibrary).toHaveBeenLastCalledWith([
     saved("n0001aa", "本棚だけの作品"),
     saved("n0002aa", "昨日の作品"),
@@ -775,7 +720,6 @@ it("keeps the shelf in the order the works were opened, across both kinds and ac
       },
     },
   ]);
-  // 前回の起動で残した状態: ファイル由来の 2 作品の間に Web 小説が 1 つ。
   jest
     .mocked(loadShelfOrder)
     .mockReturnValue([
@@ -794,7 +738,6 @@ it("keeps the shelf in the order the works were opened, across both kinds and ac
     "Web作品を開く",
     "サンプル作品を開く",
   ]);
-  // 作品を開くと先頭に来て、その順番が書き込まれる。
   await fireEvent.press(
     screen.getByRole("link", { name: "サンプル作品を開く" }),
   );
@@ -807,7 +750,6 @@ it("keeps the shelf in the order the works were opened, across both kinds and ac
     "別の作品を開く",
     "Web作品を開く",
   ]);
-  // 本棚を別の並びにするために、それぞれを開いた時刻も一緒に。
   expect(saveShelfOrder).toHaveBeenLastCalledWith([
     { id: "sample-01", openedAt: expect.any(Number) },
     { id: "sample-02", openedAt: 300 },
@@ -851,13 +793,9 @@ it("brings saved web novels back at launch and continues from the mini player", 
       }) as unknown as Promise<Response>,
   );
   await renderRouter(routes);
-  // 保存した作品は、同梱の本の隣に並ぶ。
   const tile = await screen.findByRole("link", { name: "Web作品を開く" });
   expect(within(tile).getByText("第二話　出会い")).toBeOnTheScreen();
-  // 著者は書名のすぐ下で、読みかけの話はその下の行: 話の題名が著者の
-  // 位置に入ることはない。
   expect(within(tile).getByText("作者名")).toBeOnTheScreen();
-  // ミニプレーヤーに戻っていて、ビューアーを開かなくても話が取得される。
   const mini = within(await screen.findByTestId("mini-player"));
   expect(mini.getByText("Web作品")).toBeOnTheScreen();
   await waitFor(() => {

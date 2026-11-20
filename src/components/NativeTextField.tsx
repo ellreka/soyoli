@@ -10,26 +10,18 @@ import { colors } from "@/constants/theme";
 
 export interface NativeTextFieldProps {
   accessibilityLabel: string;
-  /** フィールドの最初の文字列。その後はフィールドが自分の文字列を持つ。 */
   defaultValue?: string;
   placeholder?: string;
-  /** 出たときに、入力を始められる状態にする。 */
   autoFocus?: boolean;
   multiline?: boolean;
   keyboardType?: KeyboardTypeOptions;
   returnKeyType?: ReturnKeyTypeOptions;
   onChangeText?: (text: string) => void;
-  /** return キーが押された。`text` はフィールドに入っている文字列。 */
   onSubmit?: (text: string) => void;
   onFocus?: () => void;
   onBlur?: () => void;
 }
 
-/**
- * 自分で文字列を持つテキストフィールド: 初期値を渡し、変更を受け取る。
- * このファイルは React Native 版で、Web とテスト用。iOS と Android は、
- * 隣のファイルでプラットフォーム自身のフィールド（Expo UI）を描く。
- */
 export function NativeTextField({
   accessibilityLabel,
   defaultValue,
@@ -43,7 +35,6 @@ export function NativeTextField({
   onFocus,
   onBlur,
 }: NativeTextFieldProps) {
-  // 文字列はフィールドが持つ。ここでは return キーのために覚えておく。
   const text = useRef(defaultValue ?? "");
   return (
     <TextInput

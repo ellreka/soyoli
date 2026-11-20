@@ -21,12 +21,6 @@ function close(): void {
   }
 }
 
-/**
- * 1 つの作品に適用される読み。リーダーのメニューから開く: 作品が使う辞書の
- * 読み、続いて全作品共通の読み。リーダーを離れて設定へ行かなくても、ここで
- * 読みを編集・オフ・追加できる。作品がどの辞書を使うかは 1 行になっていて、
- * 押すと選択画面が開く。
- */
 export default function WorkDictionaryScreen() {
   const { bookId } = useLocalSearchParams<{ bookId?: string }>();
   const { dictionary, setEnabled } = useDictionary();
@@ -37,8 +31,7 @@ export default function WorkDictionaryScreen() {
   const shared = entryRows(dictionary.common, "common", setEnabled);
 
   return (
-    // 全画面モーダルは独立したネイティブのウィンドウ: セーフエリアは下の
-    // 画面から受け継がず、ここで計測する。
+    // WORKAROUND: 全画面モーダルは独立したネイティブのウィンドウで、セーフエリアを下の画面から受け継がない。
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>

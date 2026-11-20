@@ -2,14 +2,12 @@ import { useCallback, useRef, useState } from "react";
 import * as Speech from "expo-speech";
 
 interface Voices {
-  /** 端末の日本語の声。読み込みが済むと入る。 */
   voices: Speech.Voice[];
   voiceLoading: boolean;
   voiceError: string | null;
   loadVoices: () => void;
 }
 
-/** 端末の日本語の声。求められたときに読み込む。 */
 export function useVoices(): Voices {
   const [voices, setVoices] = useState<Speech.Voice[]>([]);
   const [voiceLoading, setVoiceLoading] = useState(false);

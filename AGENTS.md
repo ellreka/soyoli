@@ -37,6 +37,8 @@ src/
   components/     アプリのことを知らない UI 部品（プラットフォーム別: .ios/.android）
   lib/jsonFile.ts JSON ファイルを起動をまたいで保存する唯一の方法
   lib/appTask.ts  Android: 最初の画面での「戻る」は、アプリを閉じずに裏へ回す（modules/app-task）
+  lib/store.ts    React の外のストア。更新のたびに保存などを行える
+  lib/subscription.ts  外のものを、表示している間だけ購読する
   testing/app.tsx 端末を偽物にしたアプリ全体。src/__tests__/app 用
   features/
     books/        Book の形式、その段落、ファイル（EPUB、PDF）が Book になるまで。series.ts が同じ作品の巻をまとめる
@@ -45,7 +47,7 @@ src/
     speech/       段落について読み上げられるもの: ルール、ルビ、カッコの声（純粋関数）
     library/      読者が持っている作品: 本棚、履歴、その保存、本棚の画面。ファイルの取り込み（ImportFiles）とその知らせ
     player/       Playback（何が開いていて、どこにいて、どう読むか）、そのフック、プレーヤーの UI
-    loading/      再生が来た章の本文の取得。最後の本の復元
+    loading/      再生が来た章の本文の取得（chapterFetching.ts）。Library と Playback をつなぐ
     reader/       ビューアー: 章の本文、そのシート、表示設定
     browser/      アプリ内ブラウザと、話の検出
     backup/       バックアップ: ファイルの形（backup.ts）、ファイルの保存と選択、設定の行
@@ -67,7 +69,21 @@ src/
 - **新しいサイト** は、`web/sites/` に `WebSite` を実装したファイルを 1 つ、`sites/index.ts` に項目を 1 つ、`books/book.ts` にその id と名前を足す。**新しいファイル形式** は、`books/import.ts` の `formats` に項目を 1 つ足す。
 - **Web 小説: 保存するのはメタ情報だけ。** 本文も目次も決して保存しない。保存する範囲を広げる前に確認すること。
 - **テスト:** 対象ごとのユニットテストは `src/__tests__/` に、画面を通すテストは `src/__tests__/app/` に置く（最初に `@/testing/app` を import する: これが偽物を用意する）。
-- **コメントは日本語で書く。** コードのコメント、JSDoc、設定ファイルのコメント、このファイルのようなドキュメントは、基本的に日本語にする。識別子、API 名、`oxlint-disable` や `SAFETY:` のような決まった目印はそのまま書く。
+- **useEffect は使わない。** `useEffect`・`useLayoutEffect`・`useInsertionEffect`・`useFocusEffect` は lint のエラーになる。代わりに次で書く。
+  - 操作の続き（押したら保存する、取り込みが終わったら知らせる）は、その操作のイベントハンドラーの中で。
+  - 描画から計算できるものは、描画の中で。リセットには `key`。
+  - 状態は React の外のストア（`@/lib/store` の `createStore` と `useStore`）に置き、保存や外への知らせはストアの更新の中で行う（`Library`、`Dictionary`、`playbackStore`）。
+  - 外のもの（戻るボタン、タイマー、ネイティブ、TTS）は、表示している間だけ購読する: `@/lib/subscription` の `useSubscription`。購読するときに始め、解除するときに後始末する関数を渡す。この関数は毎回作り直さないこと（`useState(() => …)` で一度だけ作るか、入力が変わったときにだけ作り直す）。作り直すたびに購読し直す。画面にフォーカスがある間だけなら、`useIsFocused` と組み合わせる。
+  - 状態の変化を追って動くもの（話や PDF のページの取得）は、ストアを購読する React の外のサービスにする（`loading/chapterFetching.ts`）。
+  - 要素に結びつくもの（今の段落へのスクロール）は、ref コールバックで。
+- **`useMemo`・`useCallback` は新しく書かない。** React Compiler がメモ化する（`app.json` の `experiments.reactCompiler`）。今あるものは lint では見ていない。
+- **ref は要素とネイティブのインスタンス（タイマー、`AbortController` など）を持つためだけに使う。** 前の値やフラグを ref に書かない。
+- **モジュールに `let` で状態を持たない。** 状態はストアに置く。
+- **エラーを黙って捨てない。** `.catch(() => undefined)` ではなく、捨てる理由を名前にした関数を渡す。
+- **型アサーション（`as`）は避ける。** ディスクや外から来たものは検証する関数を通す。どうしても要るときは `SAFETY:` で根拠を書く。
+- **小さく保つ。** 関数は 50 行、ネストは 4 段、ファイルは 800 行まで。三項演算子は入れ子にしない。数値（時間、しきい値）は名前付きの定数にする。
+- **コメントは原則禁止。** 名前・関数への切り出し・定数・型・テスト名で表す。振る舞いの約束はテスト名に、ドメインの知識は `docs/` に書く。残してよいのは次の目印で始まるものだけで、本文は日本語で書く: `SAFETY:`（型アサーションなどの根拠）、`WORKAROUND:`（プラットフォームやライブラリの不具合への対処。再現条件かリンクを添え、それを確かめるテストを置く）、lint の例外（`oxlint-disable-next-line <rule> -- 理由`）、`@ts-expect-error`、JS のファイルの型注釈（`/** @type {…} */`）。`modules/` は例外で、そこのコメントはネイティブ側をほかの理由で変えるときにまとめて直す: `modules/` はネイティブのハッシュ（`runtimeVersion`）に入るので、コメントだけの変更でも出ている APK にアップデートが届かなくなる。
+- **lint が見られるものは `pnpm lint` が見る。** effect の禁止は `error`。型アサーション・大きさ・数値は、今ある違反を直し終えるまでは `warn` にしてある。新しく書くコードや触ったところでは、warn を出さないこと。直し終えたら `error` に上げる。
 
 ## ナビゲーションとルーティング
 

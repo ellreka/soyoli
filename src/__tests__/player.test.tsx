@@ -6,7 +6,10 @@ import * as Speech from "expo-speech";
 
 import type { Book, ContentNode } from "@/features/books/book";
 import * as DictionaryModule from "@/features/dictionary/Dictionary";
-import { emptyDictionary } from "@/features/dictionary/entries";
+import {
+  emptyDictionary,
+  type Dictionary,
+} from "@/features/dictionary/entries";
 import { PlaybackProvider, usePlayback } from "@/features/player/Playback";
 import * as PageSound from "@/features/player/pageSound";
 import {
@@ -70,7 +73,6 @@ beforeEach(() => {
   jest.mocked(Speech.getAvailableVoicesAsync).mockReset().mockResolvedValue([]);
   jest.mocked(loadPlayback).mockReset().mockReturnValue(null);
   jest.mocked(savePlayback).mockClear();
-  // ページめくりの後に間を置かない。その間を試すテストだけは別。
   jest.spyOn(PageSound, "pageTurnWait").mockReturnValue(0);
   jest.mocked(activateKeepAwakeAsync).mockClear();
   jest.mocked(deactivateKeepAwake).mockClear();
@@ -138,7 +140,6 @@ it("extracts paragraphs without images or duplicate ruby and retains unannotated
     },
   ];
   expect(toParagraphs(nodes)).toEqual([
-    // 段落は、文がいくつ入っていても 1 つの単位。
     {
       text: "「こんにちは。」次は漢字です！",
       speech: "「こんにちは。」次はかん字です！",
@@ -320,7 +321,6 @@ it("stops at the end of an episode when it is not to read on, without restarting
     result.current.toggle();
   });
   expect(Speech.speak).toHaveBeenCalledTimes(1);
-  // 読み上げ中に切り替えても、読んでいる段落はやり直さない。
   await act(async () => {
     result.current.setAutoNext(false);
   });
@@ -334,7 +334,6 @@ it("stops at the end of an episode when it is not to read on, without restarting
   await act(async () => {
     done();
   });
-  // 次の話の先頭で止まる: 再生を押せば、そこから読む。
   expect(result.current.state).toMatchObject({
     chapterIndex: 3,
     paragraphIndex: 0,
@@ -578,8 +577,6 @@ it("persists the reading position and settings after a delay", async () => {
 });
 
 it("keeps playing when the app leaves the foreground (background reading)", async () => {
-  // 再生は AppState で動かしていない: 画面を消したまま読み上げることこそが
-  // 目的（app.json の iOS UIBackgroundModes audio）。
   const addEventListener = jest.spyOn(AppState, "addEventListener");
   const { result } = await setup();
   await act(async () => {
@@ -799,8 +796,6 @@ it("moves on to the next episode at the end and reads it once its text arrives",
   await act(async () => {
     done();
   });
-  // 次はまだ取得していない話 — その先の読み込み済みの話へ飛ばさない —
-  // で、再生は止まりも失敗もせず、それを待つ。
   expect(result.current.state).toMatchObject({
     chapterIndex: 1,
     paragraphIndex: 0,
@@ -809,7 +804,6 @@ it("moves on to the next episode at the end and reads it once its text arrives",
   expect(Speech.speak).toHaveBeenCalledTimes(1);
   expect(result.current.error).toBeNull();
 
-  // チャプターローダーが取得した本文を差し込む。
   await act(async () => {
     result.current.openBook({
       ...webNovel,
@@ -893,7 +887,6 @@ it("resumes a saved web novel at its episode and paragraph once the text is fetc
   const { result } = await renderHook(() => usePlayback(), {
     wrapper: PlaybackProvider,
   });
-  // 起動後の本棚にあるのは最後に読んだ話だけで、本文はない。
   const saved: Book = { ...webNovel, chapters: [webNovel.chapters[1]] };
   await act(async () => {
     result.current.openBook(saved);
@@ -918,7 +911,6 @@ it("resumes a saved web novel at its episode and paragraph once the text is fetc
     paragraphIndex: 1,
     playing: false,
   });
-  // 待っている間に、保存された段落を先頭で上書きしていてはならない。
   await act(async () => {
     result.current.toggle();
   });
@@ -933,7 +925,6 @@ it("opens a web novel at the episode asked for, and stays on it when the table o
     result.current.openBook(webNovel);
   });
   expect(result.current.state.chapterIndex).toBe(0);
-  // ブラウザから 3 話目で開いた: 作品を読みかけた位置ではなく、そこへ行く。
   await act(async () => {
     result.current.openBook({ ...webNovel }, { chapterId: "3" });
   });
@@ -942,7 +933,6 @@ it("opens a web novel at the episode asked for, and stays on it when the table o
     paragraphIndex: 0,
     playing: false,
   });
-  // 前の話が先頭に足されるとインデックスはずれるが、読んでいる場所は動かない。
   await act(async () => {
     result.current.openBook({
       ...webNovel,
@@ -1014,7 +1004,6 @@ it("passes over a paragraph the built-in rules leave silent, and reads the next"
   await act(async () => {
     done();
   });
-  // 区切り線は読まれない（エラーにもならない）。URL は短くなる。
   expect(hook.result.current.state.paragraphIndex).toBe(2);
   expect(hook.result.current.state.playing).toBe(true);
   expect(hook.result.current.error).toBeNull();
@@ -1026,6 +1015,23 @@ it("passes over a paragraph the built-in rules leave silent, and reads the next"
 });
 
 it("passes over the paragraphs a rule matched over paragraphs leaves unread, in one move", async () => {
+  const dictionary: Dictionary = {
+    ...emptyDictionary,
+    common: [
+      {
+        surface: "^<あとがき>$[\\s\\S]*",
+        reading: "",
+        regex: true,
+        multiline: true,
+      },
+      {
+        surface: "^<注>$[\\s\\S]*?^</注>$",
+        reading: "",
+        regex: true,
+        multiline: true,
+      },
+    ],
+  };
   jest.spyOn(DictionaryModule, "useDictionary").mockReturnValue({
     add: jest.fn(),
     remove: jest.fn(),
@@ -1036,23 +1042,8 @@ it("passes over the paragraphs a rule matched over paragraphs leaves unread, in 
     setEnabled: jest.fn(),
     setSystemEnabled: jest.fn(),
     replace: jest.fn(),
-    dictionary: {
-      ...emptyDictionary,
-      common: [
-        {
-          surface: "^<あとがき>$[\\s\\S]*",
-          reading: "",
-          regex: true,
-          multiline: true,
-        },
-        {
-          surface: "^<注>$[\\s\\S]*?^</注>$",
-          reading: "",
-          regex: true,
-          multiline: true,
-        },
-      ],
-    },
+    dictionary,
+    current: () => dictionary,
   });
   const hook = await renderHook(() => usePlayback(), {
     wrapper: PlaybackProvider,
@@ -1088,7 +1079,6 @@ it("passes over the paragraphs a rule matched over paragraphs leaves unread, in 
   await act(async () => {
     done();
   });
-  // 後書きは読まれない: すぐに次の話が続く。
   expect(hook.result.current.state).toMatchObject({
     chapterIndex: 1,
     paragraphIndex: 0,
@@ -1099,11 +1089,9 @@ it("passes over the paragraphs a rule matched over paragraphs leaves unread, in 
   await act(async () => {
     done();
   });
-  // こちらで省かれるのは注記だけ。
   expect(hook.result.current.state.paragraphIndex).toBe(4);
   expect(Speech.speak).toHaveBeenCalledTimes(3);
   expect(Speech.speak).toHaveBeenLastCalledWith("最後。", expect.any(Object));
-  // 戻るときも、そこで跳ね返されずに飛び越える。
   await act(async () => {
     hook.result.current.step(-1);
   });
@@ -1115,7 +1103,6 @@ it("passes over the paragraphs a rule matched over paragraphs leaves unread, in 
   await act(async () => {
     done();
   });
-  // 最後の段落の後には、読むものが残っていない。
   expect(hook.result.current.state.playing).toBe(false);
   expect(hook.result.current.error).toBeNull();
 });
@@ -1150,7 +1137,6 @@ it("reads the inside of a bracket in the voice given to it, and keeps the choice
     });
   });
   await act(async () => {
-    // 端末にない声は受け付けない。
     hook.result.current.setBracketVoice("kagi", {
       on: true,
       voice: "missing",
@@ -1175,7 +1161,6 @@ it("reads the inside of a bracket in the voice given to it, and keeps the choice
   await act(async () => {
     done();
   });
-  // 同じ段落を、カッコの声で。速度は全体に共通のもの。
   expect(hook.result.current.state.paragraphIndex).toBe(0);
   expect(Speech.speak).toHaveBeenLastCalledWith(
     "こんにちは",
@@ -1192,7 +1177,6 @@ it("reads the inside of a bracket in the voice given to it, and keeps the choice
     done();
   });
   expect(hook.result.current.state.paragraphIndex).toBe(1);
-  // オフにすると、段落はカッコも含めてまた丸ごと読まれる。
   jest.useFakeTimers();
   await act(async () => {
     hook.result.current.seekParagraph(0, true);
@@ -1243,11 +1227,9 @@ it("keeps the screen on only while reading aloud, when the setting is on", async
   await act(async () => {
     hook.result.current.toggle();
   });
-  // 既定ではオフ: 読み上げ中の画面は端末に任せる。
   expect(hook.result.current.settings.keepAwake).toBe(false);
   expect(activateKeepAwakeAsync).not.toHaveBeenCalled();
 
-  // どちらのスイッチも読み上げ中のものをやり直さない: 声に関わる設定ではない。
   const spoken = jest.mocked(Speech.speak).mock.calls.length;
   const stopped = jest.mocked(Speech.stop).mock.calls.length;
   expect(spoken).toBeGreaterThan(0);
@@ -1302,7 +1284,6 @@ it("sounds a page turn on reading on into another chapter, and on no other move"
     };
   };
   player.play.mockClear();
-  // 本を開くのはページめくりではない。
   const hook = await renderHook(() => usePlayback(), {
     wrapper: PlaybackProvider,
   });
@@ -1310,13 +1291,10 @@ it("sounds a page turn on reading on into another chapter, and on no other move"
     hook.result.current.openBook(book);
   });
   expect(player.play).not.toHaveBeenCalled();
-  // 後ろの章へ飛ぶのも違う。本を読みかけの位置に戻すときや、目次から
-  // 飛ぶときなど。
   await act(async () => {
     hook.result.current.seekChapter(1);
   });
   expect(player.play).not.toHaveBeenCalled();
-  // 読者が自分で次の章へ進むのも、戻るのも違う。
   await act(async () => {
     hook.result.current.step(1, "chapter");
   });
@@ -1327,11 +1305,9 @@ it("sounds a page turn on reading on into another chapter, and on no other move"
   expect(player.play).not.toHaveBeenCalled();
   jest.mocked(PageSound.pageTurnWait).mockRestore();
   jest.useFakeTimers();
-  // 章の終わりを越えて読み進めるのは、ページめくり。
   await act(async () => {
     hook.result.current.toggle();
   });
-  // これより前のめくりが残した待ちを過ぎるまで進める。
   await act(async () => {
     await jest.advanceTimersByTimeAsync(1000);
   });
@@ -1344,16 +1320,12 @@ it("sounds a page turn on reading on into another chapter, and on no other move"
   });
   expect(hook.result.current.state.chapterIndex).toBe(3);
   expect(player.play).toHaveBeenCalledTimes(1);
-  // 声は音が終わるまで待ち、それから章を読む。
   expect(Speech.speak).toHaveBeenCalledTimes(spoken);
   await act(async () => {
     await jest.advanceTimersByTimeAsync(700);
   });
   expect(Speech.speak).toHaveBeenCalledTimes(spoken + 1);
   expect(jest.mocked(Speech.speak).mock.calls.at(-1)![0]).toBe("最終文。");
-  // バックグラウンドではアプリのタイマーが動かず（Android が止める）、
-  // 読み上げはそこでも続く: タイマーが発火しなくても、プレーヤーが音の
-  // 終わりを知らせた時点で声が始まる。
   await act(async () => {
     hook.result.current.seekChapter(1);
   });
@@ -1385,14 +1357,12 @@ it("sounds a page turn on reading on into another chapter, and on no other move"
   (AppState as { currentState: unknown }).currentState = shown;
   player.play.mockClear();
   player.play();
-  // オフにすると、読み進めても音は鳴らず、その選択は保存される。
   await act(async () => {
     hook.result.current.setPageSound(false);
   });
   await act(async () => {
     hook.result.current.seekChapter(1);
   });
-  // これより前のめくりが残した待ちを過ぎるまで進める。
   await act(async () => {
     await jest.advanceTimersByTimeAsync(1000);
   });

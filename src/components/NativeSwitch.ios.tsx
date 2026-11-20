@@ -6,12 +6,7 @@ import { Pressable, View } from "react-native";
 import { colors } from "@/constants/theme";
 import type { NativeSwitchProps } from "./NativeSwitch";
 
-/**
- * iOS: SwiftUI のトグル。システムの緑ではなく、アプリのモノクロで描く。
- * トグルは状態を描くだけ: スクロールビューの中では素早いタップを取りこぼした
- * （少し押し続けるか、ドラッグしないと反応しなかった）ので、タップは周りの
- * pressable が受ける。VoiceOver が読むのもそちら。
- */
+// WORKAROUND: SwiftUI のトグルはスクロールビューの中で素早いタップを取りこぼす。タップは周りの pressable が受ける。
 export function NativeSwitch({
   accessibilityLabel,
   value,

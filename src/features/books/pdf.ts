@@ -2,14 +2,11 @@ import PdfText from "../../../modules/pdf-text/src/PdfTextModule";
 import type { Book, Chapter, ContentNode, PageRange } from "./book";
 import { pdfContent } from "./pdfText";
 
-/** PDF には、今のところ頼れる章がない: 一定のページ数ごとに切る。 */
 const pagesPerChapter = 10;
-/** 文字があるかどうかを見るために、ファイル全体から調べるページ数。 */
 const sampledPages = 5;
 
 const unreadable = "ファイルを読み込めませんでした。";
 
-/** ネイティブのリーダー。なければ、このビルドにない理由を投げる。 */
 function reader(): NonNullable<typeof PdfText> {
   if (!PdfText) {
     throw new Error(
@@ -33,11 +30,6 @@ function chapterTitle({ from, count }: PageRange): string {
   return count > 1 ? `p.${from + 1}–${from + count}` : `p.${from + 1}`;
 }
 
-/**
- * `uri` の PDF を本にする。章は本文のないページの連なり: 本文は章を
- * 開いたときに読む（`readPdfPages`）ので、ファイルを開く時間は長さに
- * 関係なく同じになる。
- */
 export async function openPdf(uri: string, id: string): Promise<Book> {
   const native = reader();
   const info = await native.info(uri).catch((error: unknown) => {
@@ -68,10 +60,6 @@ export async function openPdf(uri: string, id: string): Promise<Book> {
   };
 }
 
-/**
- * 読み上げる文字のない PDF を断る: スキャンしたページは画像である。
- * 調べるのはファイル全体から選んだ数ページで、全ページではない。
- */
 export async function checkPdfText(uri: string): Promise<void> {
   const native = reader();
   try {
@@ -95,13 +83,8 @@ export async function checkPdfText(uri: string): Promise<void> {
   );
 }
 
-/** 表紙を描く幅（ピクセル）: 本棚のグリッドに足りる大きさ。 */
 const coverWidth = 600;
 
-/**
- * 最初のページを画像（`data:` URI）にしたもの。本棚が作品の表紙として
- * 見せる。ページを描けないときはなし: 表紙はおまけである。
- */
 export async function pdfCover(uri: string): Promise<string | undefined> {
   try {
     const jpeg = await reader().cover?.(uri, coverWidth);
@@ -111,7 +94,6 @@ export async function pdfCover(uri: string): Promise<string | undefined> {
   }
 }
 
-/** ページの連なりの文字を、それが作る章の内容として返す。 */
 export async function readPdfPages(
   uri: string,
   { from, count }: PageRange,

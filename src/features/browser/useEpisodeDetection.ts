@@ -10,14 +10,9 @@ import {
   type WebEpisode,
 } from "@/features/web/episode";
 
-// 話の URL が読み込まれた後にページの中で実行する。HTML はネイティブ側で
-// 解析するので、ページは追加のリクエストを出さず、利用者の Cookie も保たれる。
 const sendPageHtml =
   "window.ReactNativeWebView.postMessage(document.documentElement.outerHTML); true;";
 
-// 作品の目次をページの中から先に取得する（同一オリジンの fetch なので
-// Cookie が付く）。話数に関係なく、タグ付きのメッセージ 1 つで送る。
-// 話の本文をここで取得することはない。
 const sendToc = (url: string) =>
   `fetch(${JSON.stringify(url)})` +
   ".then((response) => response.text())" +
@@ -25,14 +20,11 @@ const sendToc = (url: string) =>
   ".catch(() => {}); true;";
 
 interface EpisodeDetection {
-  /** 表示中のページにある話。HTML の解析が済むと入る。 */
   episode: WebEpisode | null;
-  /** ページの読み込みが終わったら呼ぶ: 話のページに HTML を求める。 */
   onLoad: (url: string) => void;
   onMessage: (event: WebViewMessageEvent) => void;
 }
 
-/** アプリ内ブラウザが表示しているページから、対応している話を検出する。 */
 export function useEpisodeDetection(
   webView: RefObject<WebView<object> | null>,
   pageUrl: string,
@@ -53,19 +45,14 @@ export function useEpisodeDetection(
   }
 
   function onMessage({ nativeEvent }: WebViewMessageEvent): void {
-    // ページを特定するのは nativeEvent.url ではなく、ナビゲーションの URL:
-    // Android のメッセージイベントにはオリジンしかなく（WebMessageListener の
-    // sourceOrigin）、iOS には完全な URL がある。イベントの URL が追跡中の
-    // ページとまだ一致することを求め、古いメッセージを捨てる。
+    // WORKAROUND: Android のメッセージイベントにはオリジンしかない（WebMessageListener の sourceOrigin）。ページはナビゲーションの URL で特定し、古いメッセージを捨てる。
     if (!pageUrl.startsWith(nativeEvent.url.replace(/\/$/, ""))) {
       return;
     }
     let tagged: { kind?: string; html?: string } | undefined;
     try {
       tagged = JSON.parse(nativeEvent.data);
-    } catch {
-      // 話のページの HTML は JSON ではない。下でページの HTML として扱う。
-    }
+    } catch {}
     if (tagged?.kind === "toc" && typeof tagged.html === "string") {
       const url = tocUrlRef.current;
       if (url && url === tocUrlOf(pageUrl)) {

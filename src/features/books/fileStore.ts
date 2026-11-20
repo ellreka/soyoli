@@ -2,20 +2,12 @@ import { Directory, File, Paths } from "expo-file-system";
 
 import { toBookSeries, type Book, type BookSeries } from "./book";
 
-/**
- * ファイルから取り込んで端末に保存した作品: ファイルそのもの、独立した
- * 画像としての表紙、本棚に見せる情報。本文は起動時ではなく、作品を開いた
- * ときにファイルから読む。
- */
 export interface SavedFile {
-  /** 本の id: 取り込んだときのファイルの名前。 */
   id: string;
   title: string;
   author: string;
-  /** ストアの中での名前。ストアの場所はインストールごとに変わりうる。 */
   file: string;
   cover?: string;
-  /** ファイルが名乗るシリーズ。これを保存する前に取り込んだ作品にはない。 */
   series?: BookSeries;
   addedAt: number;
 }
@@ -31,7 +23,6 @@ function isText(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
-/** ストアが自分で作った名前: フォルダの外へ出られるものを含まない。 */
 function isStoreName(value: unknown): value is string {
   return isText(value) && /^[a-z0-9]+\.[a-z0-9]+$/.test(value);
 }
@@ -59,7 +50,6 @@ function toSavedFile(value: unknown): SavedFile | null {
   };
 }
 
-/** 保存したファイル。新しい順。索引の中の壊れた項目は落とす。 */
 export function loadFiles(): SavedFile[] {
   try {
     const index = new File(Paths.document, INDEX_NAME);
@@ -92,12 +82,9 @@ function discard(name: string | undefined): void {
     if (file.exists) {
       file.delete();
     }
-  } catch {
-    /* 残ったファイルは容量を食うだけ。 */
-  }
+  } catch {}
 }
 
-/** `data:` URI の中の画像と、保存するときの拡張子。 */
 function decodeImage(
   uri: string,
 ): { bytes: Uint8Array; extension: string } | null {
@@ -113,15 +100,10 @@ function decodeImage(
   return { bytes, extension: match[1].toLowerCase() };
 }
 
-/** 保存したファイルの表紙が今ある場所。画像として表示するため。 */
 export function coverUri(saved: SavedFile): string | undefined {
   return saved.cover ? new File(folder(), saved.cover).uri : undefined;
 }
 
-/**
- * 解析した作品のファイルを端末に保存する。同じ名前のファイルをもう一度
- * 取り込むと、保存してあったものを置き換える。端末が保存できないときは投げる。
- */
 export function saveFile(
   book: Book,
   bytes: Uint8Array,
@@ -160,11 +142,6 @@ export function saveFile(
   return saved;
 }
 
-/**
- * 保存した作品のシリーズを、ファイルを読み直して分かったものに合わせる。
- * シリーズを保存するようになる前に取り込んだ作品は、開いたときにここで
- * 追いつく。変わっていなければ何も書かない。
- */
 export function keepSeries(id: string, series: BookSeries | undefined): void {
   const files = loadFiles();
   const saved = files.find((item) => item.id === id);
@@ -179,7 +156,6 @@ export function keepSeries(id: string, series: BookSeries | undefined): void {
   );
 }
 
-/** 保存した作品のファイルと表紙を削除し、記録からも消す。 */
 export function removeFile(id: string): void {
   const files = loadFiles();
   const saved = files.find((item) => item.id === id);
@@ -191,15 +167,10 @@ export function removeFile(id: string): void {
   discard(saved.cover);
 }
 
-/** ストアのファイルが今ある場所。ネイティブコードが読むため。 */
 export function fileUri(name: string): string {
   return new File(folder(), name).uri;
 }
 
-/**
- * バイト列を独立したファイルに入れて `run` を実行する。バイト列ではなく
- * ファイルを受け取るリーダーのためのもの。ファイルは終わると消える。
- */
 export async function withTempFile<T>(
   bytes: Uint8Array,
   extension: string,
@@ -213,13 +184,10 @@ export async function withTempFile<T>(
   } finally {
     try {
       file.delete();
-    } catch {
-      /* キャッシュを消すのはシステムの役目。 */
-    }
+    } catch {}
   }
 }
 
-/** 保存した作品のファイルのバイト列。 */
 export function readFile(saved: SavedFile): Promise<Uint8Array> {
   return new File(folder(), saved.file).bytes();
 }

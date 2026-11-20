@@ -5,7 +5,6 @@ import { semantics } from "@expo/ui/jetpack-compose/modifiers";
 import { colors } from "@/constants/theme";
 import type { NativeSwitchProps } from "./NativeSwitch";
 
-/** Android: Material 3 のスイッチ。アプリのモノクロで描く。 */
 export function NativeSwitch({
   accessibilityLabel,
   value,

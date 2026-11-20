@@ -8,11 +8,7 @@ import type { NativeSliderProps } from "./NativeSlider";
 const vertical = { vertical: true };
 const stretch = { alignSelf: "stretch" } as const;
 
-/**
- * Android: Material 3 のスライダー。テーマのアクセント色ではなく、アプリの
- * モノクロで描く。なめらかに動かし — steps を使うと刻みごとに目盛りが
- * 描かれる — 値はここで刻みに丸め、ドラッグが終わったときに反映する。
- */
+// WORKAROUND: Material のスライダーは steps を使うと刻みごとに目盛りを描く。なめらかに動かし、値はここで刻みに丸める。
 export function NativeSlider({
   value,
   min,
@@ -21,7 +17,6 @@ export function NativeSlider({
   onChange,
   onCommit,
 }: NativeSliderProps) {
-  // つまみは指に付いていく。`value` はドラッグが終わったときに追いつく。
   const [dragged, setDragged] = useState<number | null>(null);
   const latest = useRef(value);
   const snap = (raw: number) => Math.round(raw / step) * step;

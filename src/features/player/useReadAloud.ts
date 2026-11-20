@@ -1,4 +1,4 @@
-import { useEffect, type RefObject, type SetStateAction } from "react";
+import { useState, type SetStateAction } from "react";
 import * as Speech from "expo-speech";
 
 import { awaitsText } from "@/features/books/book";
@@ -6,7 +6,12 @@ import type { Dictionary } from "@/features/dictionary/entries";
 import { isBracketId } from "@/features/speech/brackets";
 import type { Segment } from "@/features/speech/segments";
 import { moveToSpoken, spokenAt } from "@/features/speech/spoken";
-import { afterPageTurn, pageTurnWait } from "./pageSound";
+import {
+  unsubscribeNothing,
+  useSubscription,
+  type Subscription,
+} from "@/lib/subscription";
+import { afterPageTurn, pageTurnWait, playPageTurn } from "./pageSound";
 import type { PlaybackState } from "./playbackState";
 import type { PlaybackSettings } from "./settings";
 import type { Generation } from "./useGeneration";
@@ -15,20 +20,19 @@ import type { SleepTimer } from "./useSleepTimer";
 
 const sample: Segment[] = [{ speech: "こんにちは。これは音声の試聴です。" }];
 
+export interface LatestReading {
+  rules: () => Dictionary;
+  timer: () => SleepTimer;
+  autoNext: () => boolean;
+  pageSound: () => boolean;
+}
+
 interface ReadAloud {
   state: PlaybackState;
   settings: PlaybackSettings;
-  /** 本文の代わりに試聴している声。 */
   preview: Preview | null;
-  /** 話す内容と、それに応答するもの: `useGeneration` を参照。 */
   generation: Generation;
-  /** 段落が始まるときに読む: 新しいルールは次の段落から効く。 */
-  dictionary: RefObject<Dictionary>;
-  timer: RefObject<SleepTimer>;
-  /** 連続再生: オフなら、話の終わりで止まる。 */
-  autoNext: RefObject<boolean>;
-  /** 読み上げが別の章へ進んだときに呼ばれる（`usePageTurn`）。 */
-  onChapterTurn: () => void;
+  latest: LatestReading;
   change: (update: SetStateAction<PlaybackState>) => void;
   setSleepTimer: (value: SleepTimer) => void;
   stopPreview: () => void;
@@ -36,39 +40,25 @@ interface ReadAloud {
   setPreviewError: (message: string) => void;
 }
 
-/**
- * 話す: `playing` の間、読む位置にある段落を、次にその次を、と本の終わりか
- * スリープタイマーまで続ける — または、試聴している声のサンプルを話す。
- * 発話は一度に 1 つ。話す内容を変えるものがあれば、止めて最初からやり直す。
- *
- * バックグラウンドでの動作は意図したもの: 画面がロックされても、アプリが
- * フォアグラウンドを離れても、読み上げは続く（iOS では UIBackgroundModes
- * audio が要り、app.json で宣言している）。それがこのアプリの目的なので、
- * ここでは AppState の変化で一時停止するものはない。
- */
-export function useReadAloud({
+function providerMayBeGone(): void {}
+
+function readAloud({
   state,
   settings,
   preview,
   generation,
-  dictionary,
-  timer,
-  autoNext,
-  onChapterTurn,
+  latest,
   change,
   setSleepTimer,
   stopPreview,
   setError,
   setPreviewError,
-}: ReadAloud): void {
+}: ReadAloud): Subscription {
   const { rate, pitch, voice, brackets } = settings;
-
-  useEffect(() => {
+  function start(): (() => void) | undefined {
     if (!preview && (!state.book || !state.playing)) {
       return;
     }
-    // まだ読み込み中の話に来た: 「再生中」のまま待ち、本文が届いたら始める
-    // （取得に失敗したらローダーが一時停止する）。
     if (!preview && awaitsText(state.book?.chapters[state.chapterIndex])) {
       return;
     }
@@ -90,19 +80,15 @@ export function useReadAloud({
       );
       change((current) => ({ ...current, playing: false }));
     }
-    /**
-     * 次の段落へ進む。本の終わりかタイマーなら止まる。連続再生がオフなら
-     * 話の終わりでも止まり、読む位置は次の話の先頭に進める。
-     */
     function advance() {
       const next = moveToSpoken(
-        { rules: dictionary.current, brackets },
+        { rules: latest.rules(), brackets },
         state.book,
         state.chapters,
         state,
         1,
       );
-      const sleep = timer.current;
+      const sleep = latest.timer();
       const timerReached =
         (typeof sleep === "number" && Date.now() >= sleep) ||
         (sleep === "chapter" &&
@@ -111,10 +97,9 @@ export function useReadAloud({
         setSleepTimer(null);
       }
       const turns = Boolean(next) && next?.chapterIndex !== state.chapterIndex;
-      const chapterEnd = turns && !autoNext.current;
-      // めくる音は、読み続けるときだけ。
-      if (turns && !chapterEnd && !timerReached) {
-        onChapterTurn();
+      const chapterEnd = turns && !latest.autoNext();
+      if (turns && !chapterEnd && !timerReached && latest.pageSound()) {
+        playPageTurn();
       }
       change({
         ...state,
@@ -124,9 +109,7 @@ export function useReadAloud({
     }
     async function speak() {
       await Speech.stop();
-      // 声は、ページめくりの音が終わるまで待つ。2 つが重なって鳴らないように。
-      // ただのタイマーではない: タイマーは Android のバックグラウンドで止まり、
-      // 読み上げはそこでも続く。
+      // WORKAROUND: Android のバックグラウンドではタイマーが止まるが、読み上げは続く。ページめくりの音の終わりはタイマーだけで待たない（afterPageTurn）。
       const wait = pageTurnWait();
       if (wait > 0) {
         await afterPageTurn(wait);
@@ -139,12 +122,11 @@ export function useReadAloud({
       const parts: Segment[] = preview
         ? sample
         : (spokenAt(
-            { rules: dictionary.current, brackets },
+            { rules: latest.rules(), brackets },
             state.book,
             state.chapters,
             state,
           ) ?? []);
-      // ルールによって読むものがなくなった段落（◆◇◆ の区切り線）は飛ばす。
       if (paragraph && parts.length === 0) {
         advance();
         return;
@@ -156,16 +138,12 @@ export function useReadAloud({
         fail();
         return;
       }
-      if (
-        !preview &&
-        typeof timer.current === "number" &&
-        Date.now() >= timer.current
-      ) {
+      const sleep = latest.timer();
+      if (!preview && typeof sleep === "number" && Date.now() >= sleep) {
         setSleepTimer(null);
         change((current) => ({ ...current, playing: false }));
         return;
       }
-      /** 段落の 1 区間を、その声で読み、次の区間へ進む。 */
       function say(index: number) {
         const part = parts[index];
         const own = isBracketId(part.bracket)
@@ -207,26 +185,29 @@ export function useReadAloud({
       if (live()) {
         generation.begin();
       }
-      Speech.stop().catch(() => {
-        /* プロバイダーは、もうアンマウントされているかもしれない。 */
-      });
+      Speech.stop().catch(providerMayBeGone);
     };
-  }, [
-    state,
-    rate,
-    pitch,
-    voice,
-    brackets,
-    preview,
-    generation,
-    dictionary,
-    timer,
-    autoNext,
-    onChapterTurn,
-    change,
-    setSleepTimer,
-    stopPreview,
-    setError,
-    setPreviewError,
-  ]);
+  }
+  return () => start() ?? unsubscribeNothing;
+}
+
+function readingInputs({ state, settings, preview }: ReadAloud): unknown[] {
+  const { rate, pitch, voice, brackets } = settings;
+  return [state, rate, pitch, voice, brackets, preview];
+}
+
+function sameInputs(a: unknown[], b: unknown[]): boolean {
+  return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+export function useReadAloud(reading: ReadAloud): void {
+  const inputs = readingInputs(reading);
+  const [current, setCurrent] = useState(() => ({
+    inputs,
+    subscribe: readAloud(reading),
+  }));
+  if (!sameInputs(current.inputs, inputs)) {
+    setCurrent({ inputs, subscribe: readAloud(reading) });
+  }
+  useSubscription(current.subscribe);
 }

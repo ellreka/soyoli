@@ -26,7 +26,6 @@ function matchKakuyomuEpisode(url: string): KakuyomuEpisodePage | null {
 
 const workPattern = /^https:\/\/kakuyomu\.jp\/works\/(\d+)\/?(?:[?#]|$)/;
 
-/** 作品のトップページの作品 id。そのページが目次を持つ。 */
 function matchKakuyomuWork(url: string): string | null {
   return workPattern.exec(url)?.[1] ?? null;
 }
@@ -37,19 +36,13 @@ function isObject(value: unknown): value is Json {
   return typeof value === "object" && value !== null;
 }
 
-/** ページのデータストアの `{ __ref }` ポインタが指す項目。 */
 function follow(store: Json, pointer: unknown): Json | null {
   const key = isObject(pointer) ? pointer.__ref : undefined;
   const target = typeof key === "string" ? store[key] : undefined;
   return isObject(target) ? target : null;
 }
 
-/**
- * 作品の話の一覧。読む順。作品ページは一覧をクライアント側で、ハッシュ
- * 化されたクラス名で描画するが、その元になるデータを JSON（Next.js の
- * `__NEXT_DATA__`）で一緒に送ってくる: 目次全体が、どれだけ長くても
- * 1 ページに入っている。章の見出しは表示用なので含めない。
- */
+// WORKAROUND: カクヨムの作品ページは一覧をクライアント側で、ハッシュ化されたクラス名で描く。元になるデータ（Next.js の `__NEXT_DATA__`）から読む。
 function parseKakuyomuToc(html: string, url: string): WorkToc {
   const workId = matchKakuyomuWork(url);
   const json = /<script id="__NEXT_DATA__"[^>]*>([\s\S]*?)<\/script>/.exec(
@@ -78,7 +71,6 @@ function parseKakuyomuToc(html: string, url: string): WorkToc {
     for (const item of Array.isArray(episodes) ? episodes : []) {
       const episode = follow(store, item);
       const id = episode?.id;
-      // id は数字だけ。それ以外では話の URL にならない。
       if (typeof id !== "string" || !/^\d+$/.test(id)) {
         continue;
       }
@@ -92,19 +84,16 @@ function parseKakuyomuToc(html: string, url: string): WorkToc {
   return { entries };
 }
 
-/** 「題 - 作品名（著者） - カクヨム」の形のページタイトルから取る著者。 */
 function authorFromTitle(title: string): string {
   return /（([^（）]+)） - カクヨム$/.exec(title)?.[1]?.trim() ?? "";
 }
 
-/** カクヨムには前書きや後書きの欄がない。すべてが本文。 */
 function parseKakuyomuEpisode(
   document: HtmlDocument,
   url: string,
 ): WebEpisode | null {
   const page = matchKakuyomuEpisode(url);
   const body = findByClass(document, "widget-episodeBody");
-  // 作品のヘッダーがあるのは最初の話だけ。パンくずリストはすべての話にある。
   const breadcrumbs = findById(
     document,
     "worksEpisodesEpisodeHeader-breadcrumbs",
@@ -127,7 +116,6 @@ function parseKakuyomuEpisode(
       textOf(findById(document, "contentMain-header-author")) ||
       authorFromTitle(textOf(findTag(document, "title"))),
     episodeId: page.episodeId,
-    // 入れ子の章は、階層ごとに見出しを 1 つ描画する。最後のものがいちばん近い。
     chapterTitle:
       textOf(findAllByClass(document, "chapterTitle").at(-1)) || undefined,
     title: textOf(findByClass(document, "widget-episodeTitle")) || workTitle,
@@ -143,7 +131,6 @@ function workUrl(workId: string): string {
   return `https://kakuyomu.jp/works/${workId}`;
 }
 
-/** カクヨム。作品のページが目次全体を持つ。 */
 export const kakuyomu: WebSite = {
   id: "kakuyomu",
   listing: {

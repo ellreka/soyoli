@@ -15,10 +15,6 @@ import { colors, iconColor } from "@/constants/theme";
 import { IconGlyph } from "./Icon";
 import type { IconButtonProps } from "./IconButton";
 
-/**
- * iOS: SwiftUI の borderless ボタン。システムのツールバーのボタンと同じ
- * ように、押している間は薄くなる。ほかのアイコンボタンと同じ 44pt 四方。
- */
 export function IconButton({
   icon,
   label,

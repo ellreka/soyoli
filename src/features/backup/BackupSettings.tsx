@@ -13,10 +13,6 @@ function description(text: string) {
   );
 }
 
-/**
- * 設定の一覧の「バックアップ」: 読者が作ったもの（辞書、音声設定、本棚と
- * 履歴の Web 小説）をファイルに書き出す行と、ファイルから取り込む行。
- */
 export function BackupSettings() {
   const { exportBackup, importBackup } = useBackup();
   return (

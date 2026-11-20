@@ -1,4 +1,3 @@
-// Jest 用の代役: 本物のモジュールは import 時にネイティブの TurboModule を要求する。
 const calls = {
   enable: jest.fn(() => Promise.resolve()),
   disable: jest.fn(() => Promise.resolve()),

@@ -28,25 +28,16 @@ const withAction = {
   flex: 1,
   flexDirection: "row",
   alignItems: "center",
-  // 行自身の右の余白はアクションの手前で終わる: アクションは、反対側で
-  // 文字が取っているのと同じ距離をカードの端から保つ。
   paddingRight: 16,
 } as const;
 const beside = { flex: 1, flexDirection: "row", alignItems: "center" } as const;
-// 行は、絵の後ろに自分の 16pt の余白を保つ。
 const leadingSlot = { paddingLeft: 16 } as const;
 
-/**
- * iOS: 行として並べた SwiftUI のボタン。`List` の外の行にはシステムが余白を
- * 付けないので、自分で持つ: 左右に 16pt、上下には 44pt のタップ領域に
- * なるだけの余白。余白を含めた全体がボタンで、押している間は薄くなる。
- */
 export function NativeRow({ action, leading, ...row }: NativeRowProps) {
   if (!action && !leading) {
     return <Row {...row} />;
   }
-  // SwiftUI のボタンは中に別のボタンを入れられない: アクションは行の隣、
-  // 同じ面の上に置く。行頭の絵も行の隣に置き、押すと行と同じことをする。
+  // WORKAROUND: SwiftUI のボタンは中に別のボタンを入れられない。アクションと行頭の絵は行の隣に置く。
   return (
     <View style={action ? withAction : beside}>
       {leading && (
@@ -107,7 +98,6 @@ function Row({
               modifiers={[
                 font({ size: 15, weight: "medium" }),
                 foregroundStyle(colors.text),
-                // 折り返したタイトルも左揃えのまま。
                 multilineTextAlignment("leading"),
               ]}
             >

@@ -15,10 +15,6 @@ function close() {
   }
 }
 
-/**
- * 音声設定のページを、リーダー（それ自体がモーダル）の上に全画面で出す:
- * 中身は設定タブのページと同じで、閉じるボタンが付く。
- */
 function ModalPage({
   title,
   children,
@@ -27,8 +23,7 @@ function ModalPage({
   children: ReactNode;
 }) {
   return (
-    // 全画面モーダルは独立したネイティブのウィンドウ: セーフエリアは下の
-    // 画面から受け継がず、ここで計測する。
+    // WORKAROUND: 全画面モーダルは独立したネイティブのウィンドウで、セーフエリアを下の画面から受け継がない。
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>
@@ -45,7 +40,6 @@ function ModalPage({
   );
 }
 
-/** カッコの声。リーダーから開く。 */
 export function BracketVoicesModal() {
   return (
     <ModalPage title="カッコ別の音声">

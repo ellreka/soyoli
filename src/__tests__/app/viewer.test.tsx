@@ -13,6 +13,7 @@ import { renderRouter } from "expo-router/testing-library";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
 import { BottomSheet } from "@expo/ui";
+import { FlatList } from "react-native";
 import { colors } from "@/constants/theme";
 import { themes } from "@/features/reader/Display";
 import { loadDisplay, saveDisplay } from "@/features/reader/displayStorage";
@@ -33,8 +34,6 @@ it("has one book entry point and always displays the player alongside the chapte
   expect(screen.queryByRole("button", { name: "この章から聴く" })).toBeNull();
   expect(screen.getByRole("button", { name: "前の話" })).toBeDisabled();
   await fireEvent.press(screen.getByRole("button", { name: "次の話" }));
-  // 話はすぐ移る: 題名が先に変わり、本文は次のフレームで組む。長い話でも、
-  // 押したボタンが効いていないように見えない。
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
   expect(screen.queryByTestId("chapter-content")).toBeNull();
   await screen.findByTestId("chapter-content");
@@ -75,13 +74,11 @@ it("changes playback settings inside the viewer and returns there from the mini 
     "最初の本文。",
     expect.any(Object),
   );
-  // 第 0 章は 180pt に 13 文字: x=90 は 7 文字目で、2 つ目の段落の中。
   await seek(90);
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "もう一つの文。",
   );
   expect(screen.getByText("6 / 13 字")).toBeOnTheScreen();
-  // 作品の 2 話のうち 1 話目。
   expect(screen.getByText("1 / 2 話")).toBeOnTheScreen();
   await fireEvent.press(screen.getByRole("button", { name: "音声設定" }));
   expect(
@@ -107,7 +104,6 @@ it("changes playback settings inside the viewer and returns there from the mini 
     "もう一つの文。",
     expect.objectContaining({ voice: "ja-voice" }),
   );
-  // カッコの声はここの 1 行で、押すとそのページが開く。
   expect(
     screen.getByRole("button", { name: "カッコ別の音声 オフ" }),
   ).toBeOnTheScreen();
@@ -141,7 +137,6 @@ it("changes playback settings inside the viewer and returns there from the mini 
     "もう一つの文。",
     expect.objectContaining({ pitch: 1 }),
   );
-  // スクリーンリーダーの調整操作は、ドラッグを始めずに値を変えられる。
   await fireEvent(
     screen.getByRole("adjustable", { name: "声の高さ" }),
     "RNCSliderValueChange",
@@ -157,7 +152,6 @@ it("changes playback settings inside the viewer and returns there from the mini 
     "最初の本文。",
   );
   expect(screen.queryByRole("button", { name: "前の段落" })).toBeNull();
-  // タイマーはドックにあり、設定すると残り時間を表示する。
   await fireEvent.press(screen.getByRole("button", { name: "タイマー" }));
   await fireEvent.press(screen.getByRole("radio", { name: "5分" }));
   expect(
@@ -244,7 +238,6 @@ it("keeps image-only chapters viewable with the player present", async () => {
 it("changes font size, line spacing and theme from the reader settings and keeps them", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   await screen.findByTestId("chapter-content");
-  // 既定値: 黒テーマで 17pt。
   const paragraph = () => chapterText("最初の本文。").parent;
   expect(paragraph()).toHaveStyle({ fontSize: 17, lineHeight: 33 });
   expect(screen.getByTestId("chapter-content")).toHaveStyle({
@@ -255,7 +248,6 @@ it("changes font size, line spacing and theme from the reader settings and keeps
   expect(screen.getByRole("radio", { name: "文字サイズ 中" })).toBeChecked();
   expect(screen.getByRole("radio", { name: "行間 標準" })).toBeChecked();
   expect(screen.getByRole("radio", { name: "テーマカラー 黒" })).toBeChecked();
-  // どの選択もすぐに反映され、シートは開いたまま。
   await fireEvent.press(screen.getByRole("radio", { name: "文字サイズ 大" }));
   await fireEvent.press(screen.getByRole("radio", { name: "行間 狭い" }));
   await fireEvent.press(screen.getByRole("radio", { name: "テーマカラー 白" }));
@@ -275,10 +267,8 @@ it("changes font size, line spacing and theme from the reader settings and keeps
     theme: "white",
     playOn: "doubleTap",
   });
-  // 表示を変えても再生には触れない。
   expect(Speech.speak).not.toHaveBeenCalled();
   await dismissSheet();
-  // 設定はビューアーを閉じても残る。
   await fireEvent.press(
     screen.getByRole("button", { name: "ビューアーを閉じる" }),
   );
@@ -295,7 +285,6 @@ it("restores saved display settings and ignores unknown values", async () => {
   await screen.findByTestId("chapter-content");
   expect(chapterText("最初の本文。").parent).toHaveStyle({
     fontSize: 25,
-    // 不正な行の高さは既定の比率に戻される。
     lineHeight: Math.round(25 * (33 / 17)),
   });
   expect(screen.getByTestId("chapter-content")).toHaveStyle({
@@ -312,14 +301,12 @@ it("moves on a tap, plays on a double tap, and can be set to play on a single ta
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "もう一つの文。",
   );
-  // 1 回のタップは読む位置を動かすだけ。
   await fireEvent.press(chapterText("最初の本文。"));
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "最初の本文。",
   );
   expect(Speech.speak).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: "再生" })).toBeOnTheScreen();
-  // 直後のもう 1 回のタップで、そこから読み始める。
   now += 200;
   await fireEvent.press(chapterText("最初の本文。"));
   expect(Speech.speak).toHaveBeenLastCalledWith(
@@ -327,7 +314,6 @@ it("moves on a tap, plays on a double tap, and can be set to play on a single ta
     expect.any(Object),
   );
   await fireEvent.press(screen.getByRole("button", { name: "一時停止" }));
-  // リーダー設定で、1 回のタップで読み始めるようにもできる。
   await fireEvent.press(screen.getByRole("button", { name: "リーダー設定" }));
   expect(
     screen.getByRole("radio", { name: "本文から再生 ダブルタップ" }),
@@ -374,7 +360,6 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   await screen.findByTestId("chapter-content");
   const follow = { name: "読み上げ位置に戻る" };
-  // 追従は最初からオン。戻すボタンは、オフになって初めて出る。
   expect(screen.queryByRole("button", follow)).toBeNull();
   await fireEvent.press(chapterText("二段落目。二段落目の続き。"));
   expect(Speech.speak).toHaveBeenLastCalledWith(
@@ -401,13 +386,11 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
   });
   expect(screen.getByRole("button", follow)).toBeOnTheScreen();
   expect(jest.mocked(Speech.speak).mock.calls.length).toBe(calls);
-  // この段落は章の最後の単位: 読み終えると次へ進む。
   const options = jest.mocked(Speech.speak).mock.calls.at(-1)![1]!;
   await act(async () => {
     (options.onDone as () => void)();
   });
   expect(screen.getByRole("header", { name: "おわり" })).toBeOnTheScreen();
-  // 章が変わっても追従はオフのまま。
   expect(screen.getByRole("button", follow)).toBeOnTheScreen();
   expect(screen.getByRole("button", { name: "一時停止" })).toBeOnTheScreen();
   await screen.findByTestId("chapter-content");
@@ -416,7 +399,6 @@ it("with play on tap, starts at the tapped paragraph and keeps playback running 
     "次の本文。",
     expect.any(Object),
   );
-  // 段落をタップしただけでは、追従はオンに戻らない。
   expect(screen.getByRole("button", follow)).toBeOnTheScreen();
   const beforeToggle = jest.mocked(Speech.speak).mock.calls.length;
   await fireEvent.press(screen.getByRole("button", follow));
@@ -436,7 +418,6 @@ it("follows the reading position again once the seek bar moves it", async () => 
     },
   });
   expect(screen.getByRole("button", follow)).toBeOnTheScreen();
-  // シークバーで動かした先は、本文でも見える: 追従がオンに戻る。
   await seek(90);
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "もう一つの文。",
@@ -447,7 +428,6 @@ it("follows the reading position again once the seek bar moves it", async () => 
 it("opens the TOC from its header button; a book without a source page has no way back to one in its menu", async () => {
   await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
   await screen.findByTestId("chapter-content");
-  // EPUB の本には元のページがない: メニューにそこへ戻る手段は出ない。
   await fireEvent.press(screen.getByRole("button", { name: "その他" }));
   expect(screen.queryByRole("button", { name: "元のサイトで開く" })).toBeNull();
   await fireEvent.press(screen.getByTestId("reader-menu-backdrop"));
@@ -462,6 +442,39 @@ it("closes the viewer from the title, like the arrow next to it", async () => {
   await fireEvent.press(screen.getByRole("header", { name: "はじまり" }));
   expect(screen).toHavePathname("/");
   expect(screen.queryByTestId("player-sheet")).toBeNull();
+});
+
+it("centers the TOC on the chapter being read each time it opens, and leaves it where it is while open", async () => {
+  await renderRouter(routes, { initialUrl: "/reader?id=sample-01" });
+  await screen.findByTestId("chapter-content");
+  const scrollToIndex = jest
+    .spyOn(FlatList.prototype, "scrollToIndex")
+    .mockImplementation(() => undefined);
+  async function openContents() {
+    await fireEvent.press(screen.getByRole("button", { name: "目次" }));
+    await fireEvent(screen.getByTestId("player-sheet-list"), "layout", {
+      nativeEvent: { layout: { width: 320, height: 400 } },
+    });
+  }
+  await openContents();
+  expect(scrollToIndex).not.toHaveBeenCalled();
+  await fireEvent.press(
+    within(screen.getByTestId("player-sheet-list")).getAllByRole("radio")[1],
+  );
+  await openContents();
+  expect(scrollToIndex).toHaveBeenCalledTimes(1);
+  expect(scrollToIndex).toHaveBeenLastCalledWith({
+    index: 1,
+    viewPosition: 0.5,
+    animated: false,
+  });
+  await fireEvent(screen.getByTestId("player-sheet-list"), "layout", {
+    nativeEvent: { layout: { width: 320, height: 600 } },
+  });
+  expect(scrollToIndex).toHaveBeenCalledTimes(1);
+  await fireEvent(screen.getByTestId("player-sheet"), "requestClose");
+  await openContents();
+  expect(scrollToIndex).toHaveBeenCalledTimes(2);
 });
 
 it("uses native half/full sheet heights", async () => {
@@ -486,9 +499,7 @@ it("offers actions for a paragraph on a long press", async () => {
     nativeEvent: {},
   });
   const menu = within(screen.getByTestId("paragraph-menu"));
-  // 段落はテキストエリアに入っているので、一部を選択できる。
   expect(menu.getByDisplayValue("最初の本文。")).toBeOnTheScreen();
-  // 長押しそのものは位置を動かさず、読み上げも始めない。
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
     "もう一つの文。",
   );
@@ -510,11 +521,9 @@ it("offers actions for a paragraph on a long press", async () => {
   );
   expect(screen.queryByTestId("paragraph-menu")).not.toBeOnTheScreen();
 
-  // 一部を選択していれば、その部分だけがコピーされる。
   await fireEvent(chapterText("最初の本文。"), "longPress", {
     nativeEvent: {},
   });
-  // このフィールドは読み取り専用で、fireEvent はそれを飛ばす: ハンドラを直接呼ぶ。
   await act(async () => {
     screen.getByTestId("paragraph-menu-text").props.onSelectionChange({
       nativeEvent: { selection: { start: 0, end: 2 } },
@@ -523,7 +532,6 @@ it("offers actions for a paragraph on a long press", async () => {
   await fireEvent.press(screen.getByRole("button", { name: "コピー" }));
   expect(Clipboard.setStringAsync).toHaveBeenLastCalledWith("最初");
 
-  // メニューは設定と同じボトムシート: 閉じれば何もせずに閉じる。
   await fireEvent(chapterText("最初の本文。"), "longPress", {
     nativeEvent: {},
   });

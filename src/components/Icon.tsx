@@ -3,12 +3,7 @@ import type { ColorValue } from "react-native";
 
 import { colors } from "@/constants/theme";
 
-/**
- * Lucide 風の名前を、Expo UI が描くプラットフォーム自身のシンボルに対応
- * させる: iOS は SF Symbols、Android は Material Symbols（outlined）。
- * Android のアイコンは 1 つずつ別のアセットなので、ここに名前のあるもの
- * だけがバンドルされる。
- */
+// WORKAROUND: Android のアイコンは 1 つずつ別のアセットで、ここに名前のあるものだけがバンドルされる。
 const symbols = {
   home: UIIcon.select({
     ios: "house",
@@ -76,8 +71,7 @@ const symbols = {
   }),
   "bookmark-on": UIIcon.select({
     ios: "bookmark.fill",
-    // パッケージにはアウトラインしかない。オンとオフは iOS と同じく塗りで
-    // 見分けるので、塗りつぶした形はアプリ自前の drawable。
+    // WORKAROUND: Material Symbols のパッケージにはアウトラインしかない。塗りつぶした形はアプリ自前の drawable。
     android: import("@/assets/icons/bookmark_fill.xml"),
   }),
   type: UIIcon.select({
@@ -135,14 +129,9 @@ interface IconProps {
 }
 
 interface IconGlyphProps extends IconProps {
-  /** アイコンが単独で置かれたとき、Android のスクリーンリーダーが読む。 */
   label?: string;
 }
 
-/**
- * シンボルだけ。別の Expo UI コンポーネント（ボタン）の中で使う。上に
- * `Host` が必要で、`Icon` は自分で持っている。
- */
 export function IconGlyph({
   name,
   size,
@@ -161,8 +150,6 @@ export function IconGlyph({
 
 export function Icon(props: IconProps) {
   return (
-    // ホストはアイコンの大きさになる。アイコンは飾りで、押下は包んでいる
-    // ボタンが受け持つ。
     <Host matchContents pointerEvents="none">
       <IconGlyph {...props} />
     </Host>

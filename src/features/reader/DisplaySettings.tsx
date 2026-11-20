@@ -39,7 +39,6 @@ const playGestureNotes: Record<PlayGesture, string> = {
   tap: "本文をタップすると、その段落から再生します。",
 };
 
-/** ラベル表の、型の付いたキー。宣言した順。 */
 function keys<Key extends string>(labels: Record<Key, string>): Key[] {
   return Object.keys(labels) as Key[];
 }
@@ -49,7 +48,6 @@ interface RowProps {
   children: ReactNode;
 }
 
-/** 設定 1 つ: その名前と、下の行に並ぶ選択肢。 */
 function Row({ title, children }: RowProps) {
   return (
     <View style={styles.row}>
@@ -72,7 +70,6 @@ interface ChoiceRowProps<Key extends string> {
   onChange: (value: Key) => void;
 }
 
-/** 文字の選択肢を持つ設定。選ばれたものは塗りつぶされる。 */
 function ChoiceRow<Key extends string>({
   title,
   labels,
@@ -103,11 +100,6 @@ function ChoiceRow<Key extends string>({
   );
 }
 
-/**
- * リーダー設定: 文字サイズ、行間、読書テーマ、本文へのどのタップで
- * 読み上げを始めるか。画面の半分の高さのシートの後ろにある本文で、変更を
- * そのつど確かめられる。最後の設定にはスクロールして届く。
- */
 export function DisplaySettings() {
   const { settings, update } = useDisplay();
 
@@ -171,12 +163,10 @@ export function DisplaySettings() {
 const styles = StyleSheet.create({
   cell: { flex: 1, minWidth: 0 },
   content: { gap: 18 },
-  // 2 段: 設定の名前、続いて幅いっぱいに並ぶ選択肢。
   row: { gap: 8 },
   title: { color: colors.secondary, fontWeight: "500", fontSize: 13 },
   choices: { flexDirection: "row", gap: 8 },
   label: { color: colors.text, fontWeight: "400", fontSize: 13 },
-  // 選択のリングは色見本の外側に置く。どのテーマでも見えるようにするため。
   ring: {
     flex: 1,
     height: 40,

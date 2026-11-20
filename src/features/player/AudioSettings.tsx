@@ -1,5 +1,5 @@
 import { router } from "expo-router";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { NativeButton } from "@/components/NativeButton";
 import { StyleSheet, Text, View } from "react-native";
 
@@ -13,17 +13,11 @@ import { usePlayback } from "./Playback";
 import { PitchField, VoiceField } from "./VoiceFields";
 import { maxRate, minRate } from "@/features/speech/voiceLimits";
 
-/** 1 回のタップで選べる速度。その間の値はスライダーと ± で届く。 */
 const rates = [0.7, 1, 1.2, 1.5, 1.7, 2];
 
-/**
- * 速度と高さ: いちばんよく、耳で聞きながら変えるもの。リーダーのシートと、
- * 設定タブのページに出る。
- */
 export function SpeedAndPitch() {
   const playback = usePlayback();
   const { settings } = playback;
-  // スライダーをドラッグしている間に表示する速度。それ以外は null。
   const [draggedRate, setDraggedRate] = useState<number | null>(null);
   const rate = draggedRate ?? settings.rate;
 
@@ -38,7 +32,6 @@ export function SpeedAndPitch() {
         </View>
         <StepSlider
           accessibilityLabel="速度"
-          // 下のボタンに追従する: ボタンを押すとつまみが動く。
           value={settings.rate}
           min={minRate}
           max={maxRate}
@@ -79,7 +72,6 @@ export function SpeedAndPitch() {
   );
 }
 
-/** 声が一覧に出るときの名前。端末の既定の声には、固有の名前がない。 */
 export function voiceName(
   identifier: string | undefined,
   voices: readonly { identifier: string; name: string }[],
@@ -91,17 +83,10 @@ export function voiceName(
 }
 
 interface AudioSettingsProps {
-  /**
-   * 行がページを開く前に呼ばれる: この設定が入っているシートを閉じる。
-   * そうしないと、ページがシートの下で開く。
-   */
+  // WORKAROUND: ページを開く前にシートを閉じる。閉じないと、ページがシートの下で開く。
   onLeave: () => void;
 }
 
-/**
- * リーダーの音声シート: 速度、高さ、基本の声をその場で変えられ、カッコの
- * 声の行はそのページを開く。ここにあるものは、すべて設定タブにもある。
- */
 export function AudioSettings({ onLeave }: AudioSettingsProps) {
   const { settings } = usePlayback();
   const ownVoices = bracketKinds.filter(
@@ -112,8 +97,6 @@ export function AudioSettings({ onLeave }: AudioSettingsProps) {
     <View style={styles.content}>
       <SpeedAndPitch />
       <BasicVoice />
-      {/* 上の見出しと同じ組み方にして、位置を揃える。末尾の値と
-      シェブロンが、ページを開く行であることを示す。 */}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`カッコ別の音声 ${brackets}`}
@@ -159,20 +142,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   rates: { flexDirection: "row", flexWrap: "nowrap", gap: 6, width: "100%" },
-  // 6 つすべてが、行の幅を等分する。
   rate: { flex: 1, minWidth: 0 },
 });
 
-/**
- * 本文を読む声。端末の日本語の声から選ぶ。声を読み込み、離れるときに
- * まだ鳴っている試聴を止める。
- */
 export function BasicVoice() {
-  const { settings, loadVoices, stopPreview, setVoice } = usePlayback();
-  useEffect(() => {
-    loadVoices();
-    return stopPreview;
-  }, [loadVoices, stopPreview]);
+  const { settings, setVoice } = usePlayback();
   return (
     <VoiceField
       label="基本音声"

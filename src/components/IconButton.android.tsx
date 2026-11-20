@@ -9,7 +9,6 @@ import { colors, iconColor } from "@/constants/theme";
 import { IconGlyph } from "./Icon";
 import type { IconButtonProps } from "./IconButton";
 
-/** Android: Material 3 のアイコンボタン。丸いリップルが付く。 */
 export function IconButton({
   icon,
   label,

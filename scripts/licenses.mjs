@@ -1,17 +1,3 @@
-// アプリに同梱する「オープンソースライセンス」の一覧（assets/licenses.json）を
-// 作る。依存を足したり上げたりしたら `pnpm licenses:update` で作り直す。
-// 作り直し忘れは src/__tests__/licenses.test.ts が見つける。
-//
-// 載せるもの: アプリに入って配られるものだけ。
-// - JS のバンドルに入るパッケージ（iOS と Android のバンドルを実際に書き出し、
-//   ソースマップから拾う。間接の依存も、入っていれば載る）
-// - package.json の dependencies（JS から使っていなくても、ネイティブの
-//   コードがアプリに入る）
-// - ネイティブ側だけが入れるライブラリ（scripts/native-licenses.json。
-//   `pnpm licenses:native` が Gradle と CocoaPods から作る）
-// - ライブラリではない素材（下の `extras`）
-// ビルドにしか使わないもの（Babel、Metro、Expo CLI の依存など）は載せない。
-
 import { execFileSync } from "node:child_process";
 import {
   mkdtempSync,
@@ -29,13 +15,7 @@ import { fileURLToPath } from "node:url";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const output = join(root, "assets", "licenses.json");
 
-/**
- * ライブラリではないもの。素材にはバージョンがない。`text` はライセンスの
- * 名前: その標準の本文を、入れているパッケージから借りる。
- */
 const extras = [
-  // ライブラリではなく素材: ページをめくる音（assets/sounds/page-turn.mp3）。
-  // 表示（クレジット）が条件なので、ここに載せる。
   {
     name: "OtoLogic（ページをめくる音）",
     license: "CC-BY-4.0",
@@ -44,11 +24,9 @@ const extras = [
   },
 ];
 
-// パッケージの直下にある、ライセンスの本文と告知のファイル。
 const licenseFile = /^(licen[sc]e|copying|notice)([-.][\w.-]*)?$/i;
 const notText = /\.(js|cjs|mjs|ts|json|html)$/i;
 
-/** パッケージが同梱しているライセンスの本文。なければ null。 */
 function textOf(path) {
   const parts = readdirSync(path)
     .filter((file) => licenseFile.test(file) && !notText.test(file))
@@ -60,7 +38,6 @@ function textOf(path) {
   return parts.length ? parts.join("\n\n----------\n\n") : null;
 }
 
-// 同じ本文（MIT のほとんど）は 1 度だけ持ち、パッケージは番号で指す。
 const texts = [];
 function indexOf(text) {
   const found = texts.indexOf(text);
@@ -75,15 +52,10 @@ const listed = JSON.parse(
   }),
 );
 
-/** パッケージの場所。リンクをたどった先でそろえる。 */
 function real(path) {
   return realpathSync(path);
 }
 
-/**
- * JS のバンドルに入るパッケージの場所。iOS と Android のバンドルを書き出し、
- * ソースマップに載っているファイルから求める。
- */
 function bundledPaths() {
   const out = mkdtempSync(join(tmpdir(), "soyoli-licenses-"));
   try {
@@ -108,7 +80,6 @@ function bundledPaths() {
       for (const file of readdirSync(dir).filter((f) => f.endsWith(".map"))) {
         const { sources } = JSON.parse(readFileSync(join(dir, file), "utf8"));
         for (const source of sources) {
-          // 最後の node_modules/ の次が、そのファイルのパッケージ。
           const found = /^(.*\/node_modules\/)((?:@[^/]+\/)?[^/]+)\//.exec(
             source,
           );
@@ -151,17 +122,12 @@ for (const [license, group] of Object.entries(listed)) {
     });
   }
 }
-// アプリに入るのに pnpm の一覧にないものがあれば、黙って落とさない。
 if (shipped.size) {
   throw new Error(
     `ライセンスが分からないパッケージがあります:\n${[...shipped].join("\n")}`,
   );
 }
 
-/**
- * そのライセンスの標準の本文: 著作権表示を足していないもの。入れている
- * パッケージ（アプリに入らないものも含む）が同梱している本文から借りる。
- */
 function standardText(license) {
   const marker = {
     "Apache-2.0": /^\s*Apache License\s+Version 2\.0, January 2004/,
@@ -182,9 +148,6 @@ for (const extra of extras) {
   packages.push({ ...extra, text: standardText(extra.text) });
 }
 
-// ネイティブのライブラリ。iOS のものは本文を持っている。Android のものは
-// POM にライセンスの名前しかないので、Apache-2.0 だけ標準の本文を付ける
-// （著作権表示の要る MIT や BSD は、名前とページだけになる）。
 const natives = JSON.parse(
   readFileSync(join(root, "scripts", "native-licenses.json"), "utf8"),
 );

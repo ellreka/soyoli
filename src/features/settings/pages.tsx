@@ -15,7 +15,6 @@ function back(): void {
   }
 }
 
-/** 設定 › 音声設定: 速度、高さ、基本の声。 */
 export function VoiceSettingsScreen() {
   return (
     <Screen title="音声設定" onBack={back}>
@@ -27,7 +26,6 @@ export function VoiceSettingsScreen() {
   );
 }
 
-/** 設定 › カッコ別の音声: カッコの種類ごとの声。 */
 export function BracketVoicesScreen() {
   return (
     <Screen title="カッコ別の音声" onBack={back}>
@@ -36,7 +34,6 @@ export function BracketVoicesScreen() {
   );
 }
 
-/** 設定 › 読み方辞書: 辞書の一覧。 */
 export function DictionarySettingsScreen() {
   return (
     <SettingsPage title="読み方辞書" onBack={back}>
@@ -46,6 +43,5 @@ export function DictionarySettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  // リーダーのシートと同じ間隔。
   page: { gap: 28 },
 });

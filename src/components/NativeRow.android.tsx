@@ -6,13 +6,11 @@ import { rowModifiers } from "./NativeList";
 import type { NativeRowProps } from "./NativeRow";
 import { SelectionMark } from "./SelectionMark.android";
 
-/** Android: 行は Material 自身のサーフェスではなく、カードの面に載る。 */
 const rowColors = {
   containerColor: colors.surface,
   contentColor: colors.text,
   supportingContentColor: colors.secondary,
 };
-// 無効状態は別の色ではなく不透明度で表す（theme を参照）。
 const disabledColors = {
   ...rowColors,
   contentColor: `${colors.text}66`,
@@ -22,10 +20,6 @@ function ignore() {}
 const stretch = { flex: 1 };
 const vertical = { vertical: true };
 
-/**
- * iOS と Android: プラットフォームのリスト行（SwiftUI / Material 3）。
- * システムの行と同じように、指の下でハイライトやリップルが出る。
- */
 export function NativeRow({
   title,
   detail,
@@ -35,15 +29,12 @@ export function NativeRow({
   action,
   onPress,
 }: NativeRowProps) {
-  // 行頭の絵は React Native のビューで、行のスロットの中に載せる: 行の
-  // 一部になるので、そこを押しても行のリップルが全体に広がる。
   const picture = leading && <RNHostView matchContents>{leading}</RNHostView>;
   return (
     <Host matchContents={vertical} colorScheme="dark" style={stretch}>
       <ListItem
         supportingText={detail}
-        // 選択肢の行は最初からリングを持つ: Compose は一度外したスロットを
-        // 戻さない。
+        // WORKAROUND: Compose は一度外したスロットを戻さない。選択肢の行は最初からリングを持つ。
         leading={
           selected === undefined ? (
             picture
@@ -51,8 +42,6 @@ export function NativeRow({
             <SelectionMark selected={selected} />
           )
         }
-        // アクションは行の中の独立したボタン: 行のリップルはその下を走り、
-        // 押しても行は押されない。
         trailing={
           action ? (
             <Row alignment="center" spacing={4}>
@@ -67,9 +56,7 @@ export function NativeRow({
         }
         colors={disabled ? disabledColors : rowColors}
         modifiers={rowModifiers}
-        // 無効な行は、何もしないハンドラを持ち続ける: ハンドラを外すと行の
-        // modifiers がリストから「なし」に変わり、ネイティブ側がそれを適用
-        // できない（"Cannot set prop 'modifiers'"）。
+        // WORKAROUND: ハンドラを外すと modifiers が「なし」に変わり、ネイティブ側が適用できない（"Cannot set prop 'modifiers'"）。無効な行も何もしないハンドラを持つ。
         onPress={disabled ? ignore : (onPress ?? ignore)}
       >
         {title}

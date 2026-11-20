@@ -1,5 +1,4 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useEffect } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 
@@ -18,20 +17,11 @@ function close() {
   }
 }
 
-/**
- * カッコ 1 種類の声の全画面エディタ: 中身を専用の声で読むかどうか、
- * 読むならどの声でどの高さか。設定タブのカッコの一覧から開く。
- */
 export default function BracketVoiceScreen() {
   const params = useLocalSearchParams<{ kind?: string }>();
-  const { settings, loadVoices, stopPreview, setBracketVoice } = usePlayback();
+  const { settings, setBracketVoice } = usePlayback();
   const kind = bracketKinds.find((item) => item.id === params.kind);
-  useEffect(() => {
-    loadVoices();
-    return stopPreview;
-  }, [loadVoices, stopPreview]);
 
-  // 専用の声を決めるまで、カッコは基本の声から始まる。
   const own: BracketVoice = (kind && settings.brackets[kind.id]) ?? {
     on: false,
     voice: settings.voice,
@@ -39,8 +29,7 @@ export default function BracketVoiceScreen() {
   };
 
   return (
-    // 全画面モーダルは独立したネイティブのウィンドウ: セーフエリアは下の
-    // 画面から受け継がず、ここで計測する。
+    // WORKAROUND: 全画面モーダルは独立したネイティブのウィンドウで、セーフエリアを下の画面から受け継がない。
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>

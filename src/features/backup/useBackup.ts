@@ -16,13 +16,10 @@ import {
 import { pickBackup, saveBackup } from "./backupFile";
 
 interface BackupActions {
-  /** 今の辞書・音声設定・Web 小説を、読者が選んだフォルダにファイルとして保存する。 */
   exportBackup: () => void;
-  /** ファイルを選ばせ、確認してから取り込む。 */
   importBackup: () => void;
 }
 
-/** この端末にある声の id。一覧を取れなければ null。 */
 async function knownVoices(): Promise<string[] | null> {
   try {
     const voices = await Speech.getAvailableVoicesAsync();
@@ -32,10 +29,6 @@ async function knownVoices(): Promise<string[] | null> {
   }
 }
 
-/**
- * バックアップの書き出しと取り込み。入るものは `Backup` を参照。取り込みは
- * 辞書と音声設定を置き換え、Web 小説を本棚と履歴に足す。
- */
 export function useBackup(): BackupActions {
   const library = useLibrary();
   const { dictionary, replace } = useDictionary();

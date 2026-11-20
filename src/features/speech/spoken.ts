@@ -13,19 +13,13 @@ import {
   type Paragraph,
 } from "@/features/books/paragraphs";
 
-/** 「辞書なし」を表す 1 つの配列。章ごとに計算したものを使い回せるようにするため。 */
 const noEntries: readonly DictionaryEntry[] = [];
 
-/** 段落の読み方を決めるもの: 辞書とカッコ。 */
 export interface Reading {
   rules: Dictionary;
   brackets: BracketVoices;
 }
 
-/**
- * ある位置で読み上げられるもの。それぞれ 1 つの声で読む区間として返す —
- * 読むものが残らなかった段落では空。段落がないところでは undefined。
- */
 export function spokenAt(
   { rules, brackets }: Reading,
   book: Book | null,
@@ -45,9 +39,6 @@ export function spokenAt(
       );
 }
 
-/**
- * ある方向で次に読む段落: 辞書によって読むものがなくなった段落は飛ばす。
- */
 export function moveToSpoken(
   reading: Reading,
   book: Book | null,

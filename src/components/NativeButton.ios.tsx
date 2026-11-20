@@ -17,11 +17,6 @@ import type { NativeButtonProps } from "./NativeButton";
 
 const fullWidth = { vertical: true };
 
-/**
- * iOS: システムのカプセル型スタイルの SwiftUI ボタン — 主要なアクションと
- * 選択中のチップは prominent、それ以外は bordered — で、押下時の見た目は
- * システムのもの。
- */
 export function NativeButton({
   label,
   accessibilityLabel,

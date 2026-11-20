@@ -1,8 +1,3 @@
-// アプリ全体。画面を通すテストのためのもの: すべてのルートをルーターの
-// 下に置き、端末（ファイル、音声、プラットフォーム自身の操作部品）を偽物に
-// 置き換える。テストファイルでは、偽物にするモジュールより前に、これを
-// 最初に import し、`renderRouter(routes)` で描画する。
-
 import { act, fireEvent, screen, within } from "@testing-library/react-native";
 import * as Speech from "expo-speech";
 import * as RootLayout from "@/app/_layout";
@@ -62,8 +57,6 @@ jest.mock("@expo/ui", () => {
         </Modal>
       ),
     ),
-    // プラットフォームのリストと行: 行が何を言い、何をするかを保った代役。
-    // その上に作った画面を動かせるようにするため。
     List: Object.assign(
       ({ children }: { children: import("react").ReactNode }) => children,
       {
@@ -84,7 +77,6 @@ jest.mock("@expo/ui", () => {
     Column: ({ children }: { children: import("react").ReactNode }) => children,
     Row: ({ children }: { children: import("react").ReactNode }) => children,
     Spacer: () => null,
-    // アイコンは飾り。ラベルは周りのボタンが持つ。
     Icon: Object.assign(() => null, {
       select: (spec: { ios: string }) => spec.ios,
     }),
@@ -117,8 +109,6 @@ jest.mock("@expo/ui", () => {
       return (
         <Pressable
           testID={testID}
-          // シートの行は単一選択: 選ばれた行はリングが塗りつぶされる（タイマー）か、
-          // 一段明るく塗られる（章）。
           accessibilityRole={
             testID?.startsWith("sheet-row-") ? "radio" : "button"
           }
@@ -261,8 +251,6 @@ export const book: Book = {
     },
   ],
 };
-// レイアウトはコンポーネントだけでなく丸ごと渡す: その `unstable_settings`
-// （ほかの画面の下にある画面）は、アプリのナビゲーションの一部である。
 export const routes = {
   _layout: RootLayout,
   "(tabs)/_layout": TabLayout,
@@ -286,7 +274,6 @@ export const routes = {
   "bracket-voice": BracketVoiceScreen,
 };
 
-/** 開いているシートを、下へのスワイプや外側のタップと同じやり方で閉じる。 */
 export async function dismissSheet() {
   await act(async () => {
     screen.getByTestId("player-sheet").props.onDismiss();
@@ -297,7 +284,6 @@ export function chapterText(text: string) {
   return within(screen.getByTestId("chapter-content")).getByText(text);
 }
 
-/** 幅 180pt のシークバーを `x` までドラッグし、そこで離す。 */
 export async function seek(x: number) {
   const track = screen.getByTestId("playback-position");
   await fireEvent.layout(track, { width: 180, height: 28 });
@@ -308,10 +294,6 @@ export async function seek(x: number) {
   await fireEvent(track, "responderRelease", { nativeEvent: { pageX: x } });
 }
 
-/**
- * 起動時にライブラリが持っているもの。ファイル由来の作品は端末に保存されて
- * いる。ここに渡した Web 小説は、このセッションですでに開いたもの。
- */
 export function seed(...works: Book[]) {
   jest
     .mocked(savedFileBooks)

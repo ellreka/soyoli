@@ -28,14 +28,6 @@ function back(): void {
   }
 }
 
-/**
- * 設定 › 読み方辞書 › 辞書 1 つ: その名前、使っている作品、読み。読みには
- * それぞれオン／オフのスイッチが付く。作品は一覧に出るだけ: 作品が辞書を
- * 選ぶ（外す）のはリーダーのメニューから。
- *
- * アプリ自身の辞書（`system`）も同じページ。違いは、読みを編集・追加・
- * 削除できないことだけ。
- */
 export default function DictionarySetScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const { dictionary, rename, destroy, setEnabled, setSystemEnabled } =
@@ -102,8 +94,6 @@ export default function DictionarySetScreen() {
             <View style={styles.card}>
               {users.map((bookId) => {
                 const book = books.find((item) => item.id === bookId);
-                // ライブラリにない作品は、この辞書を選んだときに保存したもので
-                // 表示する: タイトルとページ。
                 const kept = dictionary.assigned[bookId];
                 const url = kept?.url ?? workUrlOf(bookId);
                 const title = book?.title ?? kept?.title;
@@ -114,8 +104,7 @@ export default function DictionarySetScreen() {
                     </Text>
                     <Text style={styles.userDetail} numberOfLines={1}>
                       {book
-                        ? // 名前を出さないサイトの作品は、アドレスで見分ける。
-                          (sourceName(book.source) ??
+                        ? (sourceName(book.source) ??
                           (url ? displayUrl(url) : ""))
                         : [
                             "本棚にない作品",
@@ -153,7 +142,6 @@ export default function DictionarySetScreen() {
           variant="text"
           fill
           onPress={() => {
-            // 削除するとすべての読みも一緒に消え、取り消せない。
             Alert.alert(
               "この辞書を削除しますか？",
               `「${set.name}」と、登録されている読み${set.entries.length}件を削除します。この操作は取り消せません。`,

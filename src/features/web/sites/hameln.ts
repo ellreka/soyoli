@@ -15,10 +15,8 @@ import {
 import type { WebEpisode, WebSite, WorkToc } from "./site";
 
 interface HamelnPage {
-  /** ページがあるサイト: 一般向けか、成人向け（`h.`）。 */
   origin: string;
   workId: string;
-  /** 作品のトップページ（目次、または短編）にはない。 */
   episodeId?: string;
 }
 
@@ -32,15 +30,10 @@ function matchHamelnPage(url: string): HamelnPage | null {
     : null;
 }
 
-/** 作品のトップページ。すべての話が並ぶ。 */
 function hamelnWorkUrl(page: HamelnPage): string {
   return `${page.origin}/novel/${page.workId}/`;
 }
 
-/**
- * 作品のページにあるリンクのアドレス。このサイトはリンクを作品のフォルダ
- * からの相対（`./4.html`、`./`）で書く。同じ作品の話へ行くものだけを残す。
- */
 function episodeLink(
   href: string | undefined,
   page: HamelnPage,
@@ -63,7 +56,6 @@ function isElement(node: HtmlElement["children"][number]): node is HtmlElement {
   return "attribs" in node;
 }
 
-/** `links` の中で文字に `label` を含むリンクを、話のアドレスとして返す。 */
 function pagerUrl(
   links: readonly HtmlElement[],
   label: string,
@@ -73,19 +65,7 @@ function pagerUrl(
   return episodeLink(link?.attribs.href, page)?.url;
 }
 
-/**
- * 話のページ（`/novel/123/4.html`）、またはトップページが物語そのものに
- * なっている作品。本文は `#honbun` にあり、前書きと後書きはその隣の別の
- * 箱に入る。サイトはブラウザによって 2 つのレイアウトを返す: アプリ自身の
- * ブラウザにはスマートフォン向けが来て、もう一方は、コンピューターとして
- * ページを求めたときの見た目。どちらも読む:
- *
- * - 作品のタイトルは作品のフォルダ（`./`）へのリンクで、スマートフォンでは
- *   ページの見出しに、そうでなければ本文の上の行にある。
- * - 著者は、その隣にあるユーザーページへのリンク。
- * - 話のタイトルは、スマートフォンでは本文の箱の中の見出しで、そうで
- *   なければ本文の前の独立した行。
- */
+// WORKAROUND: ハーメルンはブラウザによって 2 つのレイアウトを返す（アプリ内ブラウザにはスマートフォン向け）。作品と話のタイトルの場所が違うので、どちらも読む。
 function parseHamelnEpisode(
   document: HtmlDocument,
   url: string,
@@ -99,9 +79,7 @@ function parseHamelnEpisode(
     (item) => item.name === "a",
     document.children,
   );
-  // 「作品名 - 話名 - ハーメルン」。作品のページでは話名がない。
   const titleParts = textOf(findTag(document, "title")).split(" - ");
-  // ページャーの 目次 も作品のフォルダへ行く。
   const workLink = links.find(
     (link) =>
       (link.attribs.href ?? "").trim() === "./" &&
@@ -127,7 +105,6 @@ function parseHamelnEpisode(
   const entry = findById(document, "entry_box");
   const heading =
     (entry && findTag(entry, "h2")) ??
-    // その上にある作品のタイトルではない。そちらは段落の中にある。
     box?.children.find(
       (node): node is HtmlElement =>
         isElement(node) && node.name === "span" && textOf(node) !== "",
@@ -161,7 +138,6 @@ function parseHamelnEpisode(
   };
 }
 
-/** 一覧の中の話のタイトル: リンクの文字から日付を除いたもの。 */
 function listedTitle(link: HtmlElement): string {
   const named = findByClass(link, "episode-list__title");
   if (named) {
@@ -173,12 +149,6 @@ function listedTitle(link: HtmlElement): string {
   return textOf(first);
 }
 
-/**
- * 作品のトップページから取る話の一覧: すべての話がその 1 ページにある。
- * それぞれが `episode-list__item` の中の `./4.html` へのリンク（スマート
- * フォン向けのレイアウト）か、それ自体が `episode-list__link` になっている。
- * 章の見出しは表示用なので含めない。
- */
 function parseHamelnToc(document: HtmlDocument, url: string): WorkToc {
   const page = matchHamelnPage(url);
   if (!page) {
@@ -205,10 +175,6 @@ function parseHamelnToc(document: HtmlDocument, url: string): WorkToc {
   return { entries };
 }
 
-/**
- * ハーメルンと、その成人向けサイト（`h.`）。作品の番号は一般向けと通しで
- * 振られる。作品のページにすべての話が並ぶ。
- */
 export const hameln: WebSite = {
   id: "hameln",
   listing: {
@@ -221,14 +187,12 @@ export const hameln: WebSite = {
   episodeIdOf: (url) => matchHamelnPage(url)?.episodeId,
   tocUrlOf(episodeUrl) {
     const page = matchHamelnPage(episodeUrl);
-    // トップページが物語そのものになっている作品には、一覧がない。
     return page?.episodeId ? hamelnWorkUrl(page) : null;
   },
   parseToc: (html, url) =>
     matchHamelnPage(url) ? parseHamelnToc(parseHtml(html), url) : null,
   workUrl: (workId) =>
     /^\d+$/.test(workId) ? `https://syosetu.org/novel/${workId}/` : null,
-  // 作品が 2 つのサイトのどちらにあるかは、話のアドレスそのものが示す。
   workPageOf(episodeUrl) {
     const work = /^(https:\/\/(?:h\.)?syosetu\.org\/novel\/\d+)(?:\/|$)/i.exec(
       episodeUrl,

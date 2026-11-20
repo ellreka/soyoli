@@ -1,6 +1,3 @@
-// 各サイトのマークアップだけをまねた手書きのページ（2026-11 に確認）。
-// 実在の作品はリポジトリにコピーしていない。
-
 export const narouEpisodeUrl = "https://ncode.syosetu.com/n1234ab/2/";
 
 export const narouEpisodeHtml = `<!DOCTYPE html>
@@ -164,7 +161,6 @@ export const hamelnWorkHtml = `<!DOCTYPE html>
 </div>
 </body></html>`;
 
-/** 同じ話を、サイトがスマートフォンに返す形で。 */
 export const hamelnPhoneEpisodeHtml = `<!DOCTYPE HTML>
 <html lang="ja"><head><title>ハーメルン作品 - 第二話　題 - ハーメルン</title></head><body>
 <h1 id="pagetitle"><a href="./">ハーメルン作品</a></h1>
@@ -196,7 +192,6 @@ export const hamelnPhoneEpisodeHtml = `<!DOCTYPE HTML>
 </div>
 </body></html>`;
 
-/** 同じ作品のページを、サイトがスマートフォンに返す形で。 */
 export const hamelnPhoneWorkHtml = `<!DOCTYPE HTML>
 <html lang="ja"><head><title>ハーメルン作品 - ハーメルン</title></head><body>
 <p>作：<span itemprop="author"><a itemprop="url" href="https://syosetu.org/user/1234/"><span itemprop="name">書き手</span></a></span></p>

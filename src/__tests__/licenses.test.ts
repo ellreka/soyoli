@@ -14,7 +14,6 @@ function readJson(...path: string[]): Record<string, unknown> {
 }
 
 it("lists every library the app depends on, at the installed version", () => {
-  // 依存を足したり上げたりしたら、`pnpm licenses:update` で一覧を作り直す。
   const dependencies = Object.keys(
     readJson("package.json").dependencies as Record<string, string>,
   );
@@ -37,13 +36,11 @@ it("carries the license text of a library, shared between the libraries that use
 it("lists the native libraries that do not come through npm", () => {
   const named = (name: string) =>
     licensedPackages().find((item) => item.name === name)!;
-  // Android: Gradle が入れるもの。同じグループは 1 行にまとまる。
   const pdfbox = named("com.tom-roush:pdfbox-android");
   expect(pdfbox.license).toBe("Apache-2.0");
   expect(pdfbox.text).toContain("Apache License");
   expect(named("androidx.lifecycle").license).toBe("Apache-2.0");
   expect(named("com.squareup.okhttp3").text).toContain("Apache License");
-  // iOS: CocoaPods が入れるもの。本文は Pod が持っているもの。
   expect(named("ReachabilitySwift").text).toContain("Ashley Mills");
 });
 
@@ -53,6 +50,5 @@ it("names each library once per version, in alphabetical order", () => {
   expect(new Set(ids).size).toBe(ids.length);
   const names = packages.map((item) => item.name.toLowerCase());
   expect(names).toEqual(names.toSorted((a, b) => a.localeCompare(b, "en")));
-  // どのライブラリにも、少なくともライセンスの名前がある。
   expect(packages.filter((item) => !item.license)).toEqual([]);
 });

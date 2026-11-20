@@ -13,10 +13,8 @@ import { displayUrl, resolveWebAddress } from "@/features/web/browser";
 import { listedSites, type ListedSite } from "@/features/web/sites";
 import { openInBrowser } from "@/features/web/openBrowser";
 
-/** アドレス欄: 入力または貼り付けた URL のページを開く。 */
 function AddressBox() {
   const [text, setText] = useState("");
-  // フィールドは自分で文字列を持つ。key を変えると空になる。
   const [cleared, setCleared] = useState(0);
   const [invalid, setInvalid] = useState(false);
 
@@ -66,13 +64,8 @@ function AddressBox() {
   );
 }
 
-/**
- * サイト: そのアイコン、名前とアドレス、ランキングへの入口。アイコンは
- * プラットフォームの行の前に置く（行には画像を置く場所がない）。押すと
- * 行と同じようにサイトを開く。
- */
+// WORKAROUND: プラットフォームの行には画像を置く場所がない。サイトのアイコンは行の前に置き、押すと行と同じことをする。
 function SiteRow({ site }: { site: ListedSite }) {
-  // サイトのアイコンを読み込めなければ、その場所には地球儀が残る。
   const [failed, setFailed] = useState(false);
   function open(): void {
     openInBrowser(site.url);
@@ -83,7 +76,6 @@ function SiteRow({ site }: { site: ListedSite }) {
       detail={displayUrl(site.url)}
       accessibilityLabel={`${site.name}を開く`}
       onPress={open}
-      // アイコンは行の一部: そこを押しても行が押される。
       leading={
         <View
           accessible={false}
@@ -118,11 +110,8 @@ function SiteRow({ site }: { site: ListedSite }) {
   );
 }
 
-/** ホームタブ: 作品を探す・追加するためのすべての入口。本棚の内容はない。 */
 export default function HomeScreen() {
   const { importing, progress, result, start } = useImportFiles();
-  // 入った作品は、ミニプレーヤーの上の知らせが伝える。ここに残すのは、
-  // 読めなかったファイルとその理由: 知らせには収まらない。
   const failed = result?.failed ?? [];
 
   return (
@@ -183,7 +172,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     paddingLeft: 14,
-    // クリアボタンは自分でタップ領域を持っている。
     paddingRight: 2,
     borderRadius: 12,
     backgroundColor: colors.surface,

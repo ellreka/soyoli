@@ -1,13 +1,3 @@
-// ネイティブ側だけがアプリに入れるライブラリの一覧（scripts/native-licenses.json）
-// を作る: Android は Gradle が解決したリリース版の依存、iOS は CocoaPods の
-// 謝辞ファイル。npm のパッケージとして入るもの（Expo や React Native の
-// モジュール）は scripts/licenses.mjs が拾うので、ここでは外す。
-//
-// 生成された android/ と ios/（`npx expo prebuild`）と、依存を取得済みの
-// Gradle のキャッシュが要る。ネイティブの依存が変わったとき（Expo や
-// React Native を上げた、ネイティブのライブラリを足した）に
-// `pnpm licenses:native` で作り直し、続けて `pnpm licenses:update` を実行する。
-
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
@@ -24,7 +14,6 @@ const gradleCache = join(
   "files-2.1",
 );
 
-/** POM が書くライセンスの名前を、SPDX の名前にそろえる。知らない名前はそのまま。 */
 function spdx(name) {
   const known = [
     [/apache/i, "Apache-2.0"],
@@ -36,7 +25,6 @@ function spdx(name) {
   );
 }
 
-/** Gradle のキャッシュにある、その座標の POM。なければ null。 */
 function pomOf(group, artifact, version) {
   const dir = join(gradleCache, group, artifact, version);
   if (!existsSync(dir)) {
@@ -57,10 +45,6 @@ function tag(xml, name) {
   return new RegExp(`<${name}>([^<]*)</${name}>`).exec(xml)?.[1]?.trim();
 }
 
-/**
- * その座標のライセンスとページ。ライセンスを書いていない POM は、親の POM
- * のものを使う。POM がなければ null。
- */
 function describe(group, artifact, version, depth = 0) {
   const pom = pomOf(group, artifact, version);
   if (pom === null) {
@@ -99,7 +83,6 @@ function describe(group, artifact, version, depth = 0) {
   };
 }
 
-// このプロジェクトの中のモジュール（npm のパッケージ）: POM がない。
 const local =
   /^(host\.exp\.exponent|expo\.modules\.|com\.facebook\.react:react-native:)/;
 
@@ -119,7 +102,6 @@ function android() {
       },
     },
   );
-  // 「group:artifact:1.0 -> 1.2」は、解決された 1.2 のほうを取る。
   const coordinates = new Set(
     [
       ...tree.matchAll(/([\w.-]+):([\w.-]+):([\w.+-]+)(?: -> ([\w.+-]+))?/g),
@@ -128,7 +110,6 @@ function android() {
         `${group}:${artifact}:${resolved ?? version}`,
     ),
   );
-  /** グループごとの成果物。 */
   const groups = new Map();
   for (const coordinate of [...coordinates].sort()) {
     const [group, artifact, version] = coordinate.split(":");
@@ -151,8 +132,6 @@ function android() {
   for (const [group, artifacts] of groups) {
     const same = (key) =>
       new Set(artifacts.map((item) => item[key])).size === 1;
-    // 1 つのグループは 1 行にまとめる（androidx.lifecycle の 18 個など）。
-    // ライセンスがそろっていないグループだけ、成果物ごとに分ける。
     const rows =
       artifacts.length > 1 && same("license")
         ? [
@@ -201,7 +180,6 @@ function ios() {
       { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 },
     ),
   );
-  // node_modules から入る Pod（npm のパッケージ）は、ここでは要らない。
   const fromNpm = new Set(
     readdirSync(join(pods, "Local Podspecs")).map((file) =>
       file.replace(/\.podspec\.json$/, ""),
