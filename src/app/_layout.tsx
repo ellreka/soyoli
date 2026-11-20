@@ -5,8 +5,7 @@ import { Platform } from "react-native";
 
 import { ImportFilesProvider } from "@/features/library/ImportFiles";
 import { LibraryProvider } from "@/features/library/Library";
-import { PlaybackProvider } from "@/features/player/Playback";
-import { RestoreLastBook } from "@/features/loading/RestoreLastBook";
+import { LibraryPlaybackProvider } from "@/features/loading/LibraryPlaybackProvider";
 import { ChapterLoaderProvider } from "@/features/loading/ChapterLoader";
 import { DisplayProvider } from "@/features/reader/Display";
 import { colors } from "@/constants/theme";
@@ -33,17 +32,13 @@ export default function RootLayout() {
       <StatusBar style="light" />
       <LibraryProvider>
         <DictionaryProvider>
-          <PlaybackProvider>
-            {/* プレーヤーの内側: 開いている本を取り込み直したら、プレーヤーが
-                持つ本も替える。 */}
+          <LibraryPlaybackProvider>
             <ImportFilesProvider>
               <ChapterLoaderProvider>
                 <DisplayProvider>
-                  <RestoreLastBook />
                   <Stack
                     screenOptions={{
                       headerShown: false,
-                      // 画面が出入りするアニメーションの間、その後ろに見えるもの。
                       contentStyle: { backgroundColor: colors.background },
                     }}
                   >
@@ -51,10 +46,7 @@ export default function RootLayout() {
                     <Stack.Screen
                       name="reader"
                       options={{
-                        // Android は画面を pop した瞬間に中身を捨てるので、ネイティブの
-                        // 退場アニメーションには見せるものがない。そこではリーダーが
-                        // 自分でスライドして出ていき（ReaderScreen）、下の画面は
-                        // 透明なモーダルが表示したままにする。
+                        // WORKAROUND: Android は画面を pop した瞬間に中身を捨て、ネイティブの退場アニメーションに見せるものがない。リーダーは自分でスライドして出ていき（ReaderScreen）、下の画面は透明なモーダルが表示したままにする。
                         presentation:
                           Platform.OS === "android"
                             ? "transparentModal"
@@ -65,7 +57,6 @@ export default function RootLayout() {
                         animation: "slide_from_bottom",
                       }}
                     />
-                    {/* リーダー（それ自体がモーダル）とタブの上に開く。 */}
                     <Stack.Screen
                       name="work-dictionary"
                       options={{
@@ -105,7 +96,7 @@ export default function RootLayout() {
                 </DisplayProvider>
               </ChapterLoaderProvider>
             </ImportFilesProvider>
-          </PlaybackProvider>
+          </LibraryPlaybackProvider>
         </DictionaryProvider>
       </LibraryProvider>
     </ThemeProvider>

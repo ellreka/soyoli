@@ -1,20 +1,29 @@
 import { Host, Slider } from "@expo/ui";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { colors } from "@/constants/theme";
 import type { NativeSliderProps } from "./NativeSlider";
+import { useSubscription } from "@/lib/subscription";
 
 const vertical = { vertical: true };
 const stretch = { alignSelf: "stretch" } as const;
 
-/** 値が反映されるまでに、止まっていなければならない時間。 */
 const settleMs = 250;
 
-/**
- * iOS: SwiftUI のスライダー。ドラッグの一刻みごとに知らせてくるが、終わりは
- * 知らせないので、値はしばらく止まってから反映する — 一刻みごとに
- * 読み上げをやり直さないため。
- */
+function createSettle() {
+  const pending: { timer?: ReturnType<typeof setTimeout> } = {};
+  return {
+    after: (ms: number, run: () => void): void => {
+      clearTimeout(pending.timer);
+      pending.timer = setTimeout(run, ms);
+    },
+    cancelOnLeave: (): (() => void) => () => {
+      clearTimeout(pending.timer);
+    },
+  };
+}
+
+// WORKAROUND: SwiftUI のスライダーは一刻みごとに知らせ、ドラッグの終わりは知らせない。値はしばらく止まってから反映する。
 export function NativeSlider({
   value,
   min,
@@ -23,15 +32,9 @@ export function NativeSlider({
   onChange,
   onCommit,
 }: NativeSliderProps) {
-  // つまみはすぐ指に付いていく。`value` は確定したときに追いつく。
   const [dragged, setDragged] = useState<number | null>(null);
-  const pending = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(
-    () => () => {
-      clearTimeout(pending.current);
-    },
-    [],
-  );
+  const [settle] = useState(createSettle);
+  useSubscription(settle.cancelOnLeave);
   return (
     <Host
       matchContents={vertical}
@@ -47,11 +50,10 @@ export function NativeSlider({
         onValueChange={(next) => {
           setDragged(next);
           onChange?.(next);
-          clearTimeout(pending.current);
-          pending.current = setTimeout(() => {
+          settle.after(settleMs, () => {
             setDragged(null);
             onCommit(next);
-          }, settleMs);
+          });
         }}
       />
     </Host>

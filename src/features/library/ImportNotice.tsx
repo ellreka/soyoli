@@ -6,11 +6,6 @@ import { NativeButton } from "@/components/NativeButton";
 import { colors, gutter } from "@/constants/theme";
 import { useImportFiles } from "./ImportFiles";
 
-/**
- * ファイルの取り込みの知らせ。ミニプレーヤーの上に出るので、どのタブに
- * いても見える。作品が入っただけなら少し経つと自分で消え、いつでも
- * 閉じられる。
- */
 export function ImportNotice() {
   const { notice, dismiss } = useImportFiles();
   if (!notice) {
@@ -42,7 +37,6 @@ export function ImportNotice() {
       </View>
       {added.length > 0 && (
         <NativeButton
-          // 1 冊ならその作品を、何冊もあれば本棚を開く。
           label={only ? "開く" : "本棚"}
           accessibilityLabel={only ? `${only.title}を開く` : "本棚を開く"}
           variant="outlined"

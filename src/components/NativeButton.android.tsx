@@ -8,10 +8,6 @@ import type { NativeButtonProps } from "./NativeButton";
 
 const fullWidth = { vertical: true };
 
-/**
- * Material 3 のボタンそのもの。Compose ホストの中で使う: `NativeButton` の
- * 中や、別のネイティブ部品の一部（行のアクション）として。
- */
 export function ComposeButton({
   label,
   accessibilityLabel,
@@ -34,7 +30,6 @@ export function ComposeButton({
     <Component
       onClick={onPress}
       enabled={!disabled}
-      // Material の既定（左右 24dp ずつ）は、チップを並べた行には広すぎる。
       contentPadding={
         compact
           ? { start: 2, end: 2, top: 6, bottom: 6 }
@@ -55,7 +50,6 @@ export function ComposeButton({
         {icon ? <IconGlyph name={icon} size={15} color={ink} /> : null}
         {label !== "" ? (
           <Text
-            // ラベルはボタンの中で折り返さない。
             numberOfLines={1}
             textStyle={{
               color: ink,
@@ -71,10 +65,6 @@ export function ComposeButton({
   );
 }
 
-/**
- * Android: Material 3 のボタン — 主要なアクションと選択中のチップは filled、
- * それ以外は outlined か text — で、リップルが付く。
- */
 export function NativeButton(props: NativeButtonProps) {
   const fill = props.fill ?? false;
   return (

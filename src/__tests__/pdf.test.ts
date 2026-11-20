@@ -8,12 +8,10 @@ import { pdfParagraphs } from "@/features/books/pdfText";
 
 const mockDisk = new Map<string, Uint8Array | string>();
 let mockPicked: { name: string; bytes: Uint8Array } | null = null;
-/** ネイティブのリーダーから見た PDF: 各ページの文字、または失敗。 */
 let mockPdf: { title?: string; author?: string; pages: string[] } | Error = {
   pages: [],
 };
 
-/** ネイティブ側が描いた最初のページ: base64 の JPEG、または ""。 */
 let mockCover = "";
 
 jest.mock("../../modules/pdf-text/src/PdfTextModule", () => ({
@@ -99,7 +97,6 @@ jest.mock("expo-file-system", () => {
 
 const pdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
 
-/** ファイルを 1 つ取り込む: 入った作品を返し、入らなければその理由で投げる。 */
 async function importFile() {
   const result = await importFiles();
   if (!result) {
@@ -163,8 +160,6 @@ describe("pdfParagraphs", () => {
   });
 
   it("compares lines by the room they take, not by their number of letters", () => {
-    // 英字や点線リーダーの行は、日本語で埋まった行の倍の文字数になる。
-    // そのせいで、そうした行がすべて「短い」と判定されてはならない。
     const leaders = Array.from(
       { length: 6 },
       (_, index) => `1.${index} Section ${". ".repeat(28)}${index}`,
@@ -261,7 +256,6 @@ it("takes a PDF in, keeps it on the device and opens it without its text", async
     title: "取り込んだ資料",
     file: expect.stringMatching(/^[a-z0-9]+\.pdf$/),
   });
-  // ネイティブのリーダー用に作ったコピーは消え、保存したファイルは残っている。
   expect(
     [...mockDisk.keys()].filter((path) => path.startsWith("cache")),
   ).toEqual([]);
@@ -292,7 +286,6 @@ it("keeps the first page as the cover, an image of its own", async () => {
   const book = await importFile();
   expect(book?.cover).toMatch(/^doc\/books\/[a-z0-9]+c\.jpeg$/);
   expect(mockDisk.get("doc/files.json")).not.toContain("base64");
-  // 以後の表紙は保存した画像。ページを描き直すことはない。
   expect(savedFileBooks()[0].cover).toBe(book?.cover);
   expect((await openSavedFile("cover.pdf")).cover).toBe(book?.cover);
 });

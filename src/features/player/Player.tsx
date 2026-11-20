@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { NativeButton } from "@/components/NativeButton";
 import {
   StyleSheet,
@@ -14,6 +14,8 @@ import type { SleepTimer } from "./useSleepTimer";
 import { chapterProgress, positionAt } from "@/features/books/paragraphs";
 import { episodePosition } from "@/features/web/episode";
 import { Transport } from "./Transport";
+import { useStore, createStore } from "@/lib/store";
+import { useSubscription } from "@/lib/subscription";
 
 const thumb = 14;
 
@@ -21,24 +23,27 @@ function count(value: number): string {
   return value.toLocaleString("ja-JP");
 }
 
-/** 現在時刻。`ticking` の間、最新に保つ。 */
-function useNow(ticking: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!ticking) {
-      return;
-    }
+const tickMs = 1000;
+
+function createClock() {
+  const clock = createStore(Date.now());
+  function tick(): () => void {
     const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
+      clock.update(() => Date.now());
+    }, tickMs);
     return () => {
       clearInterval(interval);
     };
-  }, [ticking]);
+  }
+  return { ...clock, tick };
+}
+
+function useNow(ticking: boolean): number {
+  const [now, , clock] = useStore(createClock);
+  useSubscription(ticking ? clock.tick : null);
   return now;
 }
 
-/** スリープタイマーの残り時間を短いラベルにしたもの。オフなら null。 */
 function timerLabel(timer: SleepTimer, now: number) {
   if (timer === null) {
     return null;
@@ -52,11 +57,9 @@ function timerLabel(timer: SleepTimer, now: number) {
 interface ScrubberProps {
   read: number;
   total: number;
-  /** シークバーが読む位置を動かした。 */
   onSeek?: () => void;
 }
 
-/** 章のシークバー: タップかドラッグで動かし、離すと再生がその段落へ飛ぶ。 */
 function Scrubber({ read, total, onSeek }: ScrubberProps) {
   const playback = usePlayback();
   const [width, setWidth] = useState(0);
@@ -134,7 +137,6 @@ interface PillProps {
   icon: IconName;
   label: string;
   hint: string;
-  /** アイコンの横の文字。なければ、アイコンだけを薄く出す。 */
   value: string | null;
   onPress: () => void;
 }
@@ -157,11 +159,6 @@ interface TimerPillProps {
   onPress: () => void;
 }
 
-/**
- * スリープタイマーのボタン。残り時間を表示する。カウントダウンする時計は
- * ボタン自身のものなので、毎秒描き直されるのはこのボタンだけ。key は
- * タイマーにすること: 設定し直すと、今から数え始める。
- */
 function TimerPill({ timer, onPress }: TimerPillProps) {
   const now = useNow(typeof timer === "number");
   const remaining = timerLabel(timer, now);
@@ -177,13 +174,10 @@ function TimerPill({ timer, onPress }: TimerPillProps) {
 }
 
 interface PlayerProps {
-  /** ビューアーのシートの 1 つを開く: ドックにあるのはボタンだけ。 */
   onOpen: (sheet: "timer" | "audio") => void;
-  /** シークバーが読む位置を動かした: 本文はそこを見せる。 */
   onSeek?: () => void;
 }
 
-/** 章の本文の下に固定した操作ドック（「リーダービュー」）。 */
 export function Player({ onOpen, onSeek }: PlayerProps) {
   const { state, settings, error, timer } = usePlayback();
   const paragraphs = state.chapters[state.chapterIndex] ?? [];
@@ -196,7 +190,6 @@ export function Player({ onOpen, onSeek }: PlayerProps) {
   return (
     <View testID="viewer-player" style={styles.dock}>
       <Scrubber read={read} total={total} onSeek={onSeek} />
-      {/* 左は話の中の位置（上のシークバーと同じ）、右は作品の中の位置。 */}
       <View style={styles.counts}>
         <Text style={styles.count}>
           {`${count(read)} / ${count(total)} 字`}

@@ -8,18 +8,11 @@ import {
   type Replacement,
 } from "./replacements";
 
-/** 1 つの声で読む、段落の区間。 */
 export interface Segment {
   speech: string;
-  /** その区間が入っているカッコ。そのカッコに専用の声がある場合。 */
   bracket?: string;
 }
 
-/**
- * 専用の声を持つカッコが、文字列の中で開く位置と閉じる位置。カッコとして
- * 数えるのは、同じ段落の中で閉じているものだけ — 顔文字の単独の "(" は
- * 何も変えない — で、ルールやルビが置き換える部分の中にあるものは除く。
- */
 function bracketMarks(
   text: string,
   replacements: readonly Replacement[],
@@ -31,7 +24,6 @@ function bracketMarks(
       opens.set(open, { id: kind.id, close });
     }
   }
-  // 位置 → そこで開くカッコ。閉じる位置では null。
   const marks = new Map<number, string | null>();
   const open: { id: string; close: string; index: number }[] = [];
   let next = 0;
@@ -48,7 +40,6 @@ function bracketMarks(
       closes -= 1;
     }
     if (closes >= 0) {
-      // 内側で開いたまま閉じなかったものは、カッコではない。
       const [closed] = open.splice(closes);
       marks.set(closed.index, closed.id);
       marks.set(index, null);
@@ -62,13 +53,6 @@ function bracketMarks(
   return marks;
 }
 
-/**
- * 段落を、それぞれ 1 つの声で読む区間に分けたもの: 専用の声を持つカッコ
- * （`kinds`）の中身は独立した区間になり、カッコの文字そのものは読まれない。
- * 声のないカッコの中や、カッコに入れ子になったカッコの中では、周りの声が
- * 続く。そうしたカッコがなければ、段落は 1 つの区間で、`speechFor` が
- * 読むとおりに読まれる。
- */
 export function speechSegments(
   paragraph: Paragraph,
   kinds: readonly BracketKind[],
@@ -109,7 +93,6 @@ export function speechSegments(
     if (!spoken) {
       return;
     }
-    // 同じ声の区間が、間に読むものを挟まずに続くなら、1 つにする。
     if (last && last.bracket === bracket) {
       last.speech += spoken;
     } else {
@@ -141,7 +124,6 @@ export function speechSegments(
   return segments;
 }
 
-/** 章の 1 段落を、すべてのルールを通して、読む区間に分けたもの。 */
 export function paragraphSegments(
   paragraphs: readonly Paragraph[],
   index: number,

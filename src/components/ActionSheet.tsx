@@ -21,16 +21,13 @@ import { Pressable } from "./Pressable";
 export interface SheetAction {
   key: string;
   label: string;
-  /** 表示はされるが、選べない。 */
   disabled?: boolean;
   onPress: () => void;
 }
 
-/** その対象についての事実 1 つ: 何であるかと、その値。 */
 export interface SheetDetail {
   label: string;
   value: string;
-  /** 行を押すとこの文字列をコピーする（短くした表示の裏にある完全な URL）。 */
   copy?: string;
 }
 
@@ -39,18 +36,9 @@ interface DetailsProps {
 }
 
 const vertical = { vertical: true };
-/**
- * Android はシートを中身に合わせる: 開くときは画面の半分までで、それより
- * 高いシートは自分の高さまで引き上げられる。iOS は画面の半分で止まり、
- * 長いメニューはそこでスクロールし、画面いっぱいまで引き上げられる。
- */
 const snapPoints: SnapPoint[] | undefined =
   Platform.OS === "android" ? undefined : ["half", "full"];
 
-/**
- * 事実を表にしたもの: 片方の列にラベル、もう片方に値。コピーするものが
- * ある行はボタンで、コピーしたらそのことを表示する。
- */
 function Details({ details }: DetailsProps) {
   const [copied, setCopied] = useState<string | null>(null);
   return (
@@ -99,11 +87,7 @@ function Details({ details }: DetailsProps) {
   );
 }
 
-/**
- * アクションの行。リストは与えられた高さをすべて埋めるので、Android では
- * シートが画面いっぱいに伸びてしまう。そこでは行をそのままシートの列に
- * 並べ、シートは行に必要な高さになる。
- */
+// WORKAROUND: Android ではリストが与えられた高さを埋め、シートが画面いっぱいに伸びる。行をシートの列に直接並べる。
 function Actions({ children }: { children: ReactNode }) {
   return Platform.OS === "android" ? (
     children
@@ -112,38 +96,25 @@ function Actions({ children }: { children: ReactNode }) {
   );
 }
 
-/** シートが何についてのものかと、それに対してできること。 */
 export interface SheetMenu {
   title: string;
-  /** その対象についての事実。タイトルの下に表で出る。 */
   details?: SheetDetail[];
   actions: SheetAction[];
 }
 
 interface ActionSheetProps {
-  /** 表示するメニュー。null ならシートは出ない。 */
   menu: SheetMenu | null;
   onClose: () => void;
 }
 
-/**
- * 1 つの対象（長押しされた作品、リスト自身のメニュー）に対するアクションの
- * ボトムシート: プラットフォームのシートにプラットフォームの行。アクションを
- * 選ぶと、まずシートが閉じる。
- */
 export function ActionSheet({ menu, onClose }: ActionSheetProps) {
-  // シートは画面の下端まで届く。最後の行が Android のナビゲーションボタンや
-  // ホームインジケーターにかからないようにする。
   const insets = useSafeAreaInsets();
-  // ネイティブの閉じるアニメーションの間ずっと、中身を見せたままにする。
   const [shown, setShown] = useState(menu);
   if (menu !== null && menu !== shown) {
     setShown(menu);
   }
   return (
-    // Android ではネイティブの Compose ホストが、上に来たタッチをすべて
-    // 飲み込む。そこで RN のラッパーがヒットテストを切り替える: 待機中は
-    // タッチが下の画面へ抜け、表示中はシートが受け取る。
+    // WORKAROUND: Android の Compose ホストは、上に来たタッチをすべて飲み込む。待機中はタッチを下へ通す。
     <View
       style={StyleSheet.absoluteFill}
       pointerEvents={menu !== null ? "auto" : "none"}
@@ -171,7 +142,6 @@ export function ActionSheet({ menu, onClose }: ActionSheetProps) {
               <Spacer flexible />
             </Row>
             {shown?.details && shown.details.length > 0 && (
-              // メニューごとに新しい表にする:「コピーしました」は表示中の表のもの。
               <Details key={shown.title} details={shown.details} />
             )}
             <Actions>
@@ -201,29 +171,23 @@ export function ActionSheet({ menu, onClose }: ActionSheetProps) {
   );
 }
 
-// ネイティブ（Expo UI）部品のスタイル。StyleSheet の項目ではなく素のオブジェクト。
 const header = { paddingHorizontal: 16, paddingTop: 12 };
 const title = { color: colors.text, fontSize: 17, fontWeight: "600" } as const;
-/** Android: 行は Material 自身のサーフェスではなく、シートの面に載る。 */
 const rowColors = {
   containerColor: colors.surface,
   contentColor: colors.text,
 };
-// 無効状態は別の色ではなく不透明度で表す（theme を参照）。
 const disabledColors = { ...rowColors, contentColor: `${colors.text}66` };
 
 const styles = StyleSheet.create({
-  // 余白は padding で取る: ホストされたビューは margin 抜きで計測される。
+  // WORKAROUND: ホストされたビューは margin 抜きで計測される。余白は padding で取る。
   area: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
-  // 2 つの面のうち暗いほうで、シートにはめ込む。
   table: {
     borderRadius: 10,
     backgroundColor: colors.background,
     overflow: "hidden",
   },
   row: {
-    // 操作部品の 44pt より低い: ほとんどの行は読むだけで、シートが画面の
-    // 半分を超えないほうがよい。
     minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
@@ -235,9 +199,7 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.border,
   },
-  // すべてのラベルを同じ幅にして、値が 1 列に揃うようにする。
   label: { width: 92, color: colors.secondary, fontSize: 13 },
-  // 隣のセルに場所を譲る: 切られるのは長いアドレスで、隣ではない。
   value: {
     flexGrow: 1,
     flexShrink: 1,
@@ -246,7 +208,6 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 14,
   },
-  // どちらの文言でも収まる幅: 文字が変わっても行のレイアウトをやり直さない。
   copy: {
     width: 64,
     textAlign: "right",

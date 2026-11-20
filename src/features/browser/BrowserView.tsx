@@ -1,8 +1,8 @@
-import { router, useFocusEffect } from "expo-router";
+import { router, useIsFocused } from "expo-router";
 import { NativeButton } from "@/components/NativeButton";
 import { NativeTextField } from "@/components/NativeTextField";
-import { useCallback, useRef, useState } from "react";
-import { BackHandler, StyleSheet, Text, View } from "react-native";
+import { useRef, useState } from "react";
+import { StyleSheet, Text, View } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
 import { WebView } from "react-native-webview";
@@ -14,6 +14,8 @@ import type {
 import { Icon } from "@/components/Icon";
 import { IconButton } from "@/components/IconButton";
 import { colors } from "@/constants/theme";
+import { onHardwareBack } from "@/lib/hardwareBack";
+import { useSubscription, type Subscription } from "@/lib/subscription";
 import { useLibrary } from "@/features/library/Library";
 import { usePlayback } from "@/features/player/Playback";
 import {
@@ -31,7 +33,6 @@ interface AddressBarProps {
   onSubmit: (url: string) => void;
 }
 
-/** ページのホストとパスを表示する。フォーカスすると完全な URL を編集できる。 */
 function AddressBar({ url, onSubmit }: AddressBarProps) {
   const [editing, setEditing] = useState(false);
   return (
@@ -40,7 +41,6 @@ function AddressBar({ url, onSubmit }: AddressBarProps) {
         <Icon name="lock" size={11} color={colors.secondary} />
       )}
       <NativeTextField
-        // フィールドは自分で文字列を持つ。新しいページでは新しいフィールドにする。
         key={url}
         accessibilityLabel={`表示中のページ ${url}`}
         defaultValue={displayUrl(url)}
@@ -75,11 +75,6 @@ interface BrowserViewProps {
   onClose: () => void;
 }
 
-/**
- * Web 小説サイト用の、全画面のアプリ内ブラウザ（§4.10）。ネイティブのみ。
- * どの入口（ホーム、リーダー、…）からも、この同じ画面が開く。ミニプレーヤーは
- * 下のバーの上に載る。ほかの場所でタブバーの上に載るのと同じ。
- */
 export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
   const webView = useRef<WebView<object>>(null);
   const [page, setPage] = useState<PageState>({
@@ -89,31 +84,29 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
     loading: true,
   });
   const [progress, setProgress] = useState(0);
-  // クラッシュした Web コンテンツのプロセスは使い回せない。最後の URL で再マウントする。
+  // WORKAROUND: クラッシュした Web コンテンツのプロセスは使い回せない。最後の URL で再マウントする。
   const [instance, setInstance] = useState({ key: 0, url: startUrl });
   const detection = useEpisodeDetection(webView, page.url);
   const { addBook, isBookmarked, setBookmarked } = useLibrary();
   const { openBook, settings } = usePlayback();
   const { canGoBack } = page;
 
-  useFocusEffect(
-    useCallback(() => {
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => {
-          if (canGoBack) {
-            webView.current?.goBack();
-          } else {
-            onClose();
-          }
-          return true;
-        },
-      );
-      return () => {
-        subscription.remove();
-      };
-    }, [canGoBack, onClose]),
+  const focused = useIsFocused();
+  function goBackInPage(): boolean {
+    webView.current?.goBack();
+    return true;
+  }
+  const [backInPage, setBackInPage] = useState<{
+    subscribe: Subscription;
+  } | null>(null);
+  const [backOut] = useState(() =>
+    onHardwareBack(() => {
+      onClose();
+      return true;
+    }),
   );
+  const back = canGoBack && backInPage ? backInPage.subscribe : backOut;
+  useSubscription(focused ? back : null);
 
   function load(url: string) {
     setInstance(({ key }) => ({ key: key + 1, url }));
@@ -131,11 +124,9 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
     );
   }
 
-  // 読んでも作品は本棚に入らない。入れるのはブックマークボタン。
   function openInReader(target: WebEpisode) {
     const book = toBook(target);
     addBook(book);
-    // 以前に読みかけた位置ではなく、ページにある話で開く。
     openBook(book, { chapterId: target.episodeId });
     router.push({ pathname: "/reader", params: { id: book.id } });
   }
@@ -147,14 +138,14 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
       canGoForward: event.canGoForward,
       loading: event.loading,
     });
+    if (event.canGoBack && !backInPage) {
+      setBackInPage({ subscribe: onHardwareBack(goBackInPage) });
+    }
   }
 
   const { episode } = detection;
   return (
     <SafeAreaView style={styles.screen} edges={["top", "left", "right"]}>
-      {/* ブラウザに必要なものは、すべてこの 1 本のバーにある: タブバーと
-      ミニプレーヤーがページの下にあり、そこにブラウザ自身のバーを
-      もう 1 本置くと、ページがほとんど残らない。 */}
       <View style={styles.bar}>
         <IconButton icon="x" label="ブラウザを閉じる" onPress={onClose} />
         <IconButton
@@ -197,14 +188,13 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
         )}
       </View>
       <View style={styles.page}>
-        {/* 同梱のクラスの型は、型引数がないと props を never に潰してしまう。 */}
+        {/* WORKAROUND: 同梱のクラスの型は、型引数がないと props を never に潰す。 */}
         <WebView<object>
           key={instance.key}
           ref={webView}
           source={{ uri: instance.url }}
           style={styles.webView}
-          // すべての URL が onShouldStartLoadWithRequest に届くようにする。既定の
-          // ホワイトリストだと、Web でないスキームがほかのアプリで開いてしまう。
+          // WORKAROUND: 既定のホワイトリストだと、Web でないスキームがほかのアプリで開く。すべての URL を onShouldStartLoadWithRequest に通す。
           originWhitelist={["*"]}
           onShouldStartLoadWithRequest={(request: ShouldStartLoadRequest) =>
             canLoadInBrowser(request.url)
@@ -218,14 +208,10 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
             setProgress(nativeEvent.progress);
           }}
           setSupportMultipleWindows={false}
-          // iOS は WebView の Cookie を、アプリ自身のリクエストとは別に持つ。
-          // 共有しておけば、リーダーが後で取得する話にも、読者がページで答えた
-          // 内容（たとえばサイトの年齢確認）が付く。Android ではもともと
-          // そうなっている。
+          // WORKAROUND: iOS は WebView の Cookie をアプリ自身のリクエストと別に持つ。共有して、ページで答えた内容（年齢確認など）を後の取得にも付ける。
           sharedCookiesEnabled
           allowsBackForwardNavigationGestures
-          // "normal"/"fast" の文字列は、Android の新アーキテクチャのビュー
-          // マネージャーを落とす（prop がただの double）。0.998 は ScrollView の "normal"。
+          // WORKAROUND: "normal"/"fast" の文字列は、Android の新アーキテクチャのビューマネージャーを落とす（prop がただの double）。0.998 は ScrollView の "normal"。
           decelerationRate={0.998}
           onContentProcessDidTerminate={remount}
           onRenderProcessGone={remount}
@@ -262,7 +248,6 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  // Web ページと、その下端に浮かぶエピソードカードを入れる。
   page: { flex: 1 },
   bar: {
     height: 52,

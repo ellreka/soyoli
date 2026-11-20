@@ -14,42 +14,32 @@ import {
 } from "./fileStore";
 import { checkPdfText, openPdf, pdfCover } from "./pdf";
 
-/** ある種類のファイルが本になる方法: バイト列から、またはその場所から。 */
 type Reader =
   | { parse: (bytes: Uint8Array, id: string) => Book }
   | {
-      /** `file://` URI のファイルを読む。本文は後から来てもよい。 */
       open: (uri: string, id: string) => Promise<Book>;
-      /** 読み上げられないファイルを、取り込むときに断る。 */
       check: (uri: string) => Promise<void>;
-      /** `data:` URI の表紙。ファイルを取り込むときに一度だけ作る。 */
       cover: (uri: string) => Promise<string | undefined>;
     };
 
 type Format = Reader & {
   extension: string;
   mimeTypes: string[];
-  /** 取り込める最大のファイル（バイト）。リーダー自身に上限がない場合に使う。 */
   maxBytes?: number;
-  /** バイト列がこの種類に見えるかどうか。名前から分からないファイル用。 */
   looksLike: (bytes: Uint8Array) => boolean;
 };
 
-/** 取り込めるファイルの種類。新しい種類は、項目を 1 つ足すだけ。 */
 const formats: Format[] = [
   {
     extension: "epub",
     mimeTypes: ["application/epub+zip"],
-    // zip アーカイブ（"PK"）。残りはパーサーが確かめる。
     looksLike: (bytes) => bytes[0] === 0x50 && bytes[1] === 0x4b,
     parse: parseEpub,
   },
   {
     extension: "pdf",
     mimeTypes: ["application/pdf"],
-    // ファイルは、端末へコピーする間に一度メモリに載る。
     maxBytes: 64 * 1024 * 1024,
-    // "%PDF"
     looksLike: (bytes) =>
       bytes[0] === 0x25 &&
       bytes[1] === 0x50 &&
@@ -68,10 +58,7 @@ function named(name: string): Format | undefined {
   return formats.find((item) => item.extension === extension);
 }
 
-/**
- * ファイルの種類: 名前から、名前で分からなければ先頭のバイトから決める
- * （Android のピッカーは、ファイル名ではなくドキュメント ID を渡してくる）。
- */
+// WORKAROUND: Android のピッカーは、ファイル名ではなくドキュメント ID を渡してくる。名前で分からなければ先頭のバイトから種類を決める。
 function formatOf(name: string, bytes: Uint8Array): Format {
   const format = named(name) ?? formats.find((item) => item.looksLike(bytes));
   if (!format) {
@@ -80,15 +67,10 @@ function formatOf(name: string, bytes: Uint8Array): Format {
   return format;
 }
 
-/** 本棚が持つ形の本: 端末に保存され、表紙はファイルになっている。 */
 function withStore(book: Book, saved: SavedFile): Book {
   return { ...book, file: saved.file, cover: coverUri(saved) ?? book.cover };
 }
 
-/**
- * 保存した作品を、起動時に本棚が見せる形で返す: 本文はまだない。本文は、
- * 作品を開いたときに `openSavedFile` から来る。
- */
 export function savedFileBooks(): Book[] {
   return loadFiles().map((saved) => ({
     id: saved.id,
@@ -102,14 +84,12 @@ export function savedFileBooks(): Book[] {
   }));
 }
 
-/** 保存した作品のファイルを読んで、ビューアーが表示する本にする。 */
 export async function openSavedFile(id: string): Promise<Book> {
   const saved = loadFiles().find((item) => item.id === id);
   if (!saved) {
     throw new Error("保存したファイルが見つかりません。");
   }
   try {
-    // ストアは、種類に応じた名前をファイルに付けている。
     const format = named(saved.file);
     if (!format) {
       throw new Error(unreadable);
@@ -120,33 +100,23 @@ export async function openSavedFile(id: string): Promise<Book> {
         : format.parse(await readFile(saved), saved.id);
     try {
       keepSeries(saved.id, book.series);
-    } catch {
-      /* 書けなくても本は読める。次に開いたときにまた試す。 */
-    }
+    } catch {}
     return withStore(book, saved);
   } catch (error) {
     throw new Error(error instanceof Error ? error.message : unreadable);
   }
 }
 
-/** 取り込めなかったファイルと、その理由。 */
 export interface ImportFailure {
-  /** 選んだファイルの名前。 */
   name: string;
   message: string;
 }
 
-/** 一度の取り込みの結果: 本棚に入った作品と、入らなかったファイル。 */
 export interface ImportResult {
   added: Book[];
   failed: ImportFailure[];
 }
 
-/**
- * 選ばれたファイル 1 つを読んで、そのコピーを端末に保存する。返すのは本棚が
- * 見せる形で、本文はない（`savedFileBooks` と同じ）: 取り込むだけでは開かない
- * ので、何冊分もの本文をメモリに持たない。本文は開いたときに読む。
- */
 async function importOne(file: File): Promise<Book> {
   const bytes = await file.bytes();
   const format = formatOf(file.name, bytes);
@@ -163,9 +133,6 @@ async function importOne(file: File): Promise<Book> {
           return { ...opened, cover: await format.cover(uri) };
         })
       : format.parse(bytes, file.name);
-  // id は、作品の位置と辞書を保存するときのキー: ファイルの名前があれば
-  // それを、なければタイトルを使う。同じファイルをもう一度取り込んだときに
-  // それらが見つかるようにするため。
   const book = named(file.name)
     ? parsed
     : { ...parsed, id: `${parsed.title}.${format.extension}` };
@@ -175,13 +142,6 @@ async function importOne(file: File): Promise<Book> {
   };
 }
 
-/**
- * システムのファイルピッカーを開き、選ばれたファイル（いくつでも）を読んで、
- * そのコピーを端末に保存する。作品が本棚に残るようにするため。ファイルは
- * 1 つずつ順に読む: メモリに載るのは一度に 1 つ。読めないファイルがあっても
- * 残りは取り込み、読めなかったものは理由と一緒に返す。ピッカーを閉じたら
- * null。`onProgress` は、各ファイルを読み始める前に呼ばれる。
- */
 export async function importFiles(
   onProgress?: (done: number, total: number) => void,
 ): Promise<ImportResult | null> {
@@ -196,10 +156,8 @@ export async function importFiles(
   for (const [index, file] of pick.result.entries()) {
     onProgress?.(index, pick.result.length);
     try {
-      // 順に読む: 大きなファイルを同時にメモリへ載せない。
       // oxlint-disable-next-line no-await-in-loop
       const book = await importOne(file);
-      // 同じ名前のファイルを 2 つ選んだときは、後のものが前のものを置き換える。
       result.added = [
         ...result.added.filter((other) => other.id !== book.id),
         book,

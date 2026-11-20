@@ -7,45 +7,24 @@ import { NativeButton } from "./NativeButton";
 import { Pressable } from "./Pressable";
 import { SelectionMark } from "./SelectionMark";
 
-/** 行末に置く 2 つ目の操作部品。 */
 export interface RowAction {
   label: string;
-  /** ラベルより詳しく言えるとき、スクリーンリーダーが代わりに読む。 */
   accessibilityLabel?: string;
-  /** text: 控えめ（既定）。outlined: 行の文字から区別する。 */
   variant?: "text" | "outlined";
   onPress: () => void;
 }
 
 export interface NativeRowProps {
   title: string;
-  /** タイトルの下の、控えめな 2 行目。 */
   detail?: string;
-  /** タイトルより詳しく言えるとき、スクリーンリーダーが代わりに読む。 */
   accessibilityLabel?: string;
   disabled?: boolean;
-  /**
-   * いくつかの選択肢の 1 つである行用: 行頭にリングが付き、選ばれた行では
-   * 塗りつぶされる。
-   */
   selected?: boolean;
-  /**
-   * 行頭に置く絵（サイトのアイコンなど）。行の一部で、自分では押下を
-   * 受けない: そこを押しても行が押され、リップルも行の全体に出る。
-   */
   leading?: ReactElement;
-  /**
-   * 行末の、行の中にあるボタン: 行は 1 つの面のまま（リップルはボタンの下を
-   * 走る）で、ボタンを押しても行は押されない。
-   */
   action?: RowAction;
   onPress?: () => void;
 }
 
-/**
- * タップできる行。このファイルは React Native 版で、Web とテスト用。iOS と
- * Android は、隣のファイルでプラットフォーム自身のリスト行（Expo UI）を描く。
- */
 export function NativeRow({
   title,
   detail,

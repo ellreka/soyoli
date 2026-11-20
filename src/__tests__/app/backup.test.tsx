@@ -69,7 +69,6 @@ it("writes a backup of the dictionary, the voice settings and the saved web nove
   await fireEvent.press(
     await screen.findByRole("button", { name: "バックアップを書き出す" }),
   );
-  // 保存できたら、保存したファイルの名前を知らせる。
   await waitFor(() => {
     expect(alert).toHaveBeenLastCalledWith(
       "バックアップを保存しました",
@@ -94,7 +93,6 @@ it("writes a backup of the dictionary, the voice settings and the saved web nove
       authorNotes: false,
     },
     works: [work],
-    // 端末に保存したファイルの作品（sample-01）は入らない。
     positions: { [work.id]: { chapterId: "2", paragraphIndex: 4 } },
   });
 });
@@ -150,7 +148,6 @@ it("takes in a backup after asking: replaces the dictionary and voice, adds the 
     "キャンセル",
     "取り込む",
   ]);
-  // キャンセルすれば、何も変わらない。
   await act(async () => {
     buttons[0].onPress?.();
   });
@@ -168,7 +165,6 @@ it("takes in a backup after asking: replaces the dictionary and voice, adds the 
   expect(screen.getByTestId("settings-page-sound-switch")).not.toBeChecked();
   expect(saveDictionary).toHaveBeenLastCalledWith(savedDictionary);
   expect(saveLibrary).toHaveBeenLastCalledWith([work]);
-  // 音声設定と読みかけの位置は、少し後にまとめて保存される。
   await act(async () => {
     jest.advanceTimersByTime(1000);
   });
@@ -176,7 +172,6 @@ it("takes in a backup after asking: replaces the dictionary and voice, adds the 
     expect.objectContaining({
       rate: 1.5,
       voice: "ja-voice",
-      // この端末にない声は、端末の既定の声になる。
       brackets: { kagi: { on: true, pitch: 1.2 } },
       keepAwake: true,
       pageSound: false,

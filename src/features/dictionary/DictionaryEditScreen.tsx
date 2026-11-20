@@ -10,20 +10,12 @@ import { DictionaryForm, type DictionaryTarget } from "./DictionaryForm";
 import { setOf, type DictionaryEntry, type DictionaryScope } from "./entries";
 
 interface EditTarget {
-  /** 新しい読みの初期値、または編集中の読みの文字。 */
   surface: string;
-  /** 作品から開いた: 読みはその作品の辞書に入る。 */
   bookId?: string;
-  /** 読みが入っている、または最初に入る辞書（"common" か id）。 */
   set?: string;
-  /** `set` にすでにある読みを編集している。 */
   edit?: boolean;
 }
 
-/**
- * エディタを開くルートのパラメータ。文字は URL を通るので、ここで
- * エスケープし、画面側で戻す。
- */
 export function dictionaryParams(target: EditTarget): Record<string, string> {
   return {
     surface: encodeURIComponent(target.surface),
@@ -55,19 +47,12 @@ function close() {
 }
 
 const commonKey = "common";
-/** 「この作品の辞書」を指すキー。辞書はまだないかもしれない。 */
 const bookKey = "book";
 
 function scopeOf(key: string): DictionaryScope {
   return key === commonKey ? "common" : { setId: key };
 }
 
-/**
- * 読み 1 件の全画面エディタ。リーダーは、段落を初期値にして新しい読みを
- * 登録するために開く: 読みは作品の辞書（なければ、その場で作品名を付けて
- * 作る）か、全作品共通の辞書に入る。辞書のページは既存の読みを編集する
- * ために開き、そこではその辞書と全作品共通の辞書の間で読みを移せる。
- */
 export default function DictionaryEditScreen() {
   const params = useLocalSearchParams<{
     surface?: string;
@@ -92,9 +77,6 @@ export default function DictionaryEditScreen() {
       ).find((entry) => entry.surface === surface)
     : undefined;
   const common: DictionaryTarget = { key: commonKey, label: "すべての作品" };
-  // 読みが入るのは手元の辞書か共通辞書で、ほかの辞書には入らない。作品から
-  // 開いたときの手元の辞書は、その作品自身の辞書。作品がどの辞書を使うかは
-  // 別の場所（リーダーのメニュー）で選ぶ。
   const targets: DictionaryTarget[] =
     bookId !== undefined
       ? [
@@ -107,9 +89,7 @@ export default function DictionaryEditScreen() {
           },
           common,
         ]
-      : // 辞書のページから: その辞書か共通辞書。ほかの辞書は出さない —
-        // 出すと、辞書が増えるほど一覧が長くなる。
-        [
+      : [
           ...dictionary.sets
             .filter((set) => set.id === fromSet)
             .map((set) => ({ key: set.id, label: set.name })),
@@ -118,11 +98,7 @@ export default function DictionaryEditScreen() {
   const initialTarget = bookId !== undefined ? bookKey : (fromSet ?? commonKey);
 
   function save(target: string, edited: DictionaryEntry): void {
-    // 読みを適用するかどうかは辞書のページで切り替える。編集しても
-    // そのままにする。
     const entry = existing?.off ? { ...edited, off: true as const } : edited;
-    // 編集で文字が変わったり、読みが別の辞書へ移ったりすることがある:
-    // 元のものは横に残さず、置き換える。
     if (original) {
       remove(original, surface);
     }
@@ -140,8 +116,7 @@ export default function DictionaryEditScreen() {
   }
 
   return (
-    // 全画面モーダルは独立したネイティブのウィンドウ: セーフエリアは下の
-    // 画面から受け継がず、ここで計測する。
+    // WORKAROUND: 全画面モーダルは独立したネイティブのウィンドウで、セーフエリアを下の画面から受け継がない。
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>

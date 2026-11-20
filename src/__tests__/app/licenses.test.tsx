@@ -20,7 +20,6 @@ it("opens the list of libraries from the settings, and a library's license from 
       `このアプリは、次の${packages.length}件のライブラリと素材を使っています。`,
     ),
   ).toBeOnTheScreen();
-  // 名前の順に並ぶ。行にはバージョンとライセンスの名前が出る。
   const first = packages[0];
   const row = screen.getByRole("button", {
     name: `${first.name} ${first.version}のライセンス`,

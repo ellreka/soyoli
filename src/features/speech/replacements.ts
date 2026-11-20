@@ -4,21 +4,15 @@ import {
   type DictionaryEntry,
 } from "@/features/dictionary/entries";
 
-/** 段落の文字の一部（オフセットで指す）と、そこで読まれるもの。 */
 export interface Replacement {
   start: number;
   end: number;
   reading: string;
 }
 
-/**
- * コンパイル済みのパターン。フラグとソースごと。コンパイルできないものは
- * null。
- */
 const patterns = new Map<string, RegExp | null>();
 
 function compile(source: string, multiline: boolean): RegExp | null {
-  // sticky: 一致は 1 つの位置で試す。プレーンな文字列と同じ。
   const flags = multiline ? "muy" : "uy";
   const key = `${flags}/${source}`;
   let pattern = patterns.get(key);
@@ -30,11 +24,6 @@ function compile(source: string, multiline: boolean): RegExp | null {
   return pattern;
 }
 
-/**
- * 正規表現ルールの読みに、一致から `$` 参照を埋めたもの。
- * `String.prototype.replace` と同じ: `$$`、`$&`、`$1`–`$99`、`$<name>`。
- * 存在しないグループへの参照は、書かれたとおりに残す。
- */
 export function expandReading(reading: string, match: RegExpExecArray): string {
   return reading.replace(
     /\$(?:(\$)|(&)|(\d\d?)|<([^>]*)>)/g,
@@ -46,7 +35,6 @@ export function expandReading(reading: string, match: RegExpExecArray): string {
         return match[0];
       }
       if (digits !== undefined) {
-        // グループ 12 がなければ、"$12" はグループ 1 と文字 "2" になる。
         const two = Number(digits);
         if (two > 0 && two < match.length) {
           return match[two] ?? "";
@@ -65,7 +53,6 @@ export function expandReading(reading: string, match: RegExpExecArray): string {
   );
 }
 
-/** `index` から一致が始まるとき、ルールが置き換えるもの。一致すれば。 */
 function matchAt(
   entry: DictionaryEntry,
   text: string,
@@ -89,7 +76,6 @@ function matchAt(
   }
   pattern.lastIndex = index;
   const match = pattern.exec(text);
-  // 空の一致は何も置き換えず、その位置で進まなくなる。
   if (!match || match[0].length === 0) {
     return null;
   }
@@ -100,7 +86,6 @@ function matchAt(
   };
 }
 
-/** 文字列の各部分を、ルールが取ったものとして印を付ける。1 か所につきルールは 1 つだけ。 */
 function replacer(text: string) {
   const taken = Array.from({ length: text.length }, () => false);
   const replacements: Replacement[] = [];
@@ -116,7 +101,6 @@ function replacer(text: string) {
     taken.fill(true, start, end);
     replacements.push({ start, end, reading });
   }
-  /** 段落をまたいで照合するルール（またはそうでないルール）を適用する。 */
   function apply(
     entries: readonly DictionaryEntry[],
     multiline: boolean,
@@ -134,7 +118,6 @@ function replacer(text: string) {
       let best: Replacement | null = null;
       for (const entry of rules) {
         const found = matchAt(entry, text, index);
-        // 同じ長さなら、先に並んでいるルールが勝つ。
         if (
           found &&
           (!best || found.end > best.end) &&
@@ -156,7 +139,6 @@ function spansParagraphs(entries: readonly DictionaryEntry[]): boolean {
   return entries.some((entry) => entry.multiline && !entry.off);
 }
 
-/** 最後に計算した章。再生は段落を 1 つずつ順に尋ねてくる。 */
 let lastChapter: {
   paragraphs: readonly Paragraph[];
   bookEntries: readonly DictionaryEntry[];
@@ -164,13 +146,6 @@ let lastChapter: {
   result: readonly (readonly Replacement[])[];
 } | null = null;
 
-/**
- * 段落をまたいで照合するルール（`multiline`）が章の中で決めるものを、
- * 段落ごとに返す — そうしたルールがなければ null。章の段落を改行で
- * つないだものに対して照合し、作品の辞書が全作品共通の辞書より先、
- * 長い一致が先。いくつかの段落にまたがる一致の読みは、それが始まる段落に
- * 入り、覆っている残りの部分は読まれない。
- */
 export function chapterReplacements(
   paragraphs: readonly Paragraph[],
   bookEntries: readonly DictionaryEntry[],
@@ -197,7 +172,6 @@ export function chapterReplacements(
   let offset = 0;
   for (const [index, paragraph] of paragraphs.entries()) {
     const end = offset + paragraph.text.length;
-    // 後ろの段落で終わる一致は、その段落のためにカーソルにとどまる。
     while (cursor < found.length && found[cursor].start < end) {
       const item = found[cursor];
       const start = Math.max(item.start, offset);
@@ -205,7 +179,6 @@ export function chapterReplacements(
         result[index].push({
           start: start - offset,
           end: Math.min(item.end, end) - offset,
-          // 読むのは一度だけ。一致が始まるところで。
           reading: item.start >= offset - 1 ? item.reading : "",
         });
       }
@@ -220,15 +193,6 @@ export function chapterReplacements(
   return result;
 }
 
-/**
- * 段落について読み上げられるもの。ルールは次の順に適用され、あるルールが
- * 取った部分に、次のルールは手を付けない: 段落をまたいで照合するルールが
- * 決めたもの（`fixed`、`chapterReplacements` から）、作品の辞書のルール、
- * 本文に書かれたルビ、全作品共通のルール、最後にアプリ自身のルール
- * （`systemRules`）。1 組のルールの中では、プレーンな文字列でも正規表現
- * （表示される文字に対して照合し、ルビの読みは含めない）でも、長い一致が
- * 勝つ。表示される文字は決して変えない。
- */
 export function speechFor(
   paragraph: Paragraph,
   bookEntries: readonly DictionaryEntry[],
@@ -260,7 +224,6 @@ export function speechFor(
   return (speech + text.slice(cursor)).trim();
 }
 
-/** ルールとルビが置き換える段落の部分。本文の順。 */
 export function paragraphReplacements(
   paragraph: Paragraph,
   bookEntries: readonly DictionaryEntry[],
@@ -275,7 +238,6 @@ export function paragraphReplacements(
   apply(bookEntries, false);
   for (const annotation of paragraph.ruby ?? []) {
     const end = annotation.start + annotation.length;
-    // ルビとして書かれた傍点は読みではない: 本文のほうを読む。
     if (!isEmphasisReading(annotation.reading) && free(annotation.start, end)) {
       take(annotation.start, end, annotation.reading);
     }

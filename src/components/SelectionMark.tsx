@@ -6,12 +6,6 @@ export interface SelectionMarkProps {
   selected: boolean;
 }
 
-/**
- * いくつかの選択肢の 1 つである行の、行頭の印: リングで、選ばれたものは
- * 塗りつぶされる。このファイルは React Native 版で、Web とテスト用。iOS と
- * Android は、隣のファイルでプラットフォーム自身のもの（SF Symbol /
- * Material のラジオボタン）を描く。ネイティブのホストの中で使うためのもの。
- */
 export function SelectionMark({ selected }: SelectionMarkProps) {
   return (
     <View style={[styles.ring, selected && styles.chosen]}>

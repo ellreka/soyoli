@@ -1,16 +1,10 @@
 import type { ContentNode } from "@/features/books/book";
 
-/** 同じ段落の `text` のある範囲に付いたルビの読み。 */
 export type RubyAnnotation = {
   start: number;
   length: number;
   reading: string;
 };
-/**
- * 読み上げられ、ハイライトされ、位置として数えられる単位（仕様: 段落）:
- * 2 つの改行またはブロックの切れ目に挟まれた文章。とても長いものは
- * いくつかに切り、それぞれを 1 つの単位にする。
- */
 export type Paragraph = {
   text: string;
   speech: string;
@@ -18,31 +12,22 @@ export type Paragraph = {
 };
 export type Step = "paragraph" | "chapter";
 export type Position = { chapterIndex: number; paragraphIndex: number };
-/** 章の表示単位: 段落（インデックスで指す）か、インライン画像。 */
 export type Block =
   | {
       kind: "paragraph";
       index: number;
-      /** 改行またはブロックの切れ目の直後: 自分のブロックを新しく始める。 */
       startsBlock: boolean;
-      /** 見出し（h1–h6）の段落に付く。 */
       heading?: true;
     }
   | { kind: "image"; uri: string; alt: string };
 type TextUnit = {
   text: string;
   speech: string;
-  /** この単位の `text` の中に位置づけた読み。 */
   ruby?: RubyAnnotation[];
-  /** ブロックの境界で: ここで見出しが始まる、または終わる。 */
   heading?: "start" | "end";
 };
 type Unit = TextUnit | { image: { uri: string; alt: string } };
 
-/**
- * 傍点の記号だけでできたルビ: Web 小説は傍点をルビとして書く（強《・》）。
- * これは読みを与えるのではなく、文字に印を付けるもの。
- */
 export function isEmphasisReading(reading: string): boolean {
   return /^[・･﹅﹆•●○◦、]+$/u.test(reading);
 }
@@ -128,12 +113,8 @@ interface ParsedChapter {
   blocks: Block[];
 }
 
-// 章の内容は一度だけ解析する: プレーヤーは本を開いたときに丸ごと解析し、
-// ビューアーは開くたびに表示中の章をもう一度求める。キーは内容の配列で、
-// これは置き換えられることはあっても、書き換えられることはない。
 const parsed = new WeakMap<ContentNode[], ParsedChapter>();
 
-/** 章の段落とレイアウト用のブロック。結果を書き換えないこと。 */
 export function parseChapter(nodes: ContentNode[]): ParsedChapter {
   const known = parsed.get(nodes);
   if (known) {
@@ -155,7 +136,6 @@ function parseNodes(nodes: ContentNode[]): ParsedChapter {
     const trimmed = current.text.replace(/^[^\S　]+/u, "");
     const lead = current.text.length - trimmed.length;
     const paragraph = {
-      // 段落の字下げ（U+3000）は表示のために残す。読み上げでは完全に取り除く。
       text: trimmed.trimEnd(),
       speech: current.speech.trim(),
     };
@@ -166,7 +146,6 @@ function parseNodes(nodes: ContentNode[]): ParsedChapter {
         startsBlock: boundary && blocks.length > 0,
         ...(heading && { heading: true as const }),
       });
-      // オフセットは、切り詰める前にためた文字列の上で取ったもの。ずらす。
       const ruby = currentRuby.flatMap((annotation) =>
         annotation.start >= lead
           ? [{ ...annotation, start: annotation.start - lead }]
@@ -178,10 +157,6 @@ function parseNodes(nodes: ContentNode[]): ParsedChapter {
     current = { text: "", speech: "" };
     currentRuby = [];
   }
-  // 読み上げられ、ハイライトされる単位は段落: 文章は改行とブロックの
-  // 切れ目でだけ切り、行の途中では切らない。
-  // 読み上げる文字が 1000 を超える段落は、その長さで切っている
-  // （音声エンジンが入力に上限を設けている）。必要なら文末で切ること。
   for (const unit of units(nodes)) {
     if ("image" in unit) {
       flush();
@@ -225,7 +200,6 @@ function length(paragraphs: Paragraph[], end = paragraphs.length): number {
   return total;
 }
 
-/** 今の段落より前に読んだ文字数。本全体で数える。 */
 export function bookProgress(
   chapters: Paragraph[][],
   position: Position,
@@ -244,7 +218,6 @@ export function bookProgress(
   return { read, total };
 }
 
-/** 今の段落より前に読んだ文字数。1 つの章の中で数える。 */
 export function chapterProgress(
   paragraphs: Paragraph[],
   paragraphIndex: number,
@@ -255,7 +228,6 @@ export function chapterProgress(
   };
 }
 
-/** 本の中の指定した文字オフセットを含む段落。 */
 export function positionAt(
   chapters: Paragraph[][],
   offset: number,
@@ -279,7 +251,6 @@ export function movePosition(
   position: Position,
   direction: -1 | 1,
   unit: Step = "paragraph",
-  // 本文をこれから取得する章にはまだ段落がないが、飛ばしてよい章ではない。
   awaitsText: (chapterIndex: number) => boolean = () => false,
 ): Position | null {
   if (unit === "chapter") {

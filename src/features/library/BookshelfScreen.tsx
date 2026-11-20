@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Link, useFocusEffect, useNavigation } from "expo-router";
-import { Alert, BackHandler, StyleSheet, Text, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Link, useIsFocused, useNavigation } from "expo-router";
+import { Alert, StyleSheet, Text, View } from "react-native";
 
 import {
   ActionSheet,
@@ -16,6 +16,8 @@ import { Pressable } from "@/components/Pressable";
 import { RowGroup } from "@/components/RowGroup";
 import { EmptyState, Screen, Section } from "@/components/Screen";
 import { colors } from "@/constants/theme";
+import { onHardwareBack } from "@/lib/hardwareBack";
+import { useSubscription } from "@/lib/subscription";
 import { usePlayback } from "@/features/player/Playback";
 import { displayUrl } from "@/features/web/browser";
 import { openInBrowser } from "@/features/web/openBrowser";
@@ -30,7 +32,6 @@ import { loadShelfView, saveShelfView, type ShelfView } from "./shelfView";
 
 type Tab = "shelf" | "history";
 
-/** 見える言葉と、スクリーンリーダーが読む言葉（タブバーにも 本棚 がある）。 */
 const tabs: { key: Tab; label: string; name: string }[] = [
   { key: "shelf", label: "本棚", name: "本棚の作品" },
   { key: "history", label: "履歴", name: "履歴" },
@@ -38,7 +39,6 @@ const tabs: { key: Tab; label: string; name: string }[] = [
 const columns = 3;
 const menuHint = "長押しでメニューを開きます";
 
-/** 本棚に並ぶもの: 作品か、同じ作品の巻をまとめたもの。 */
 type ShelfItem = Book | Series;
 
 function rows(items: ShelfItem[]): ShelfItem[][] {
@@ -49,12 +49,10 @@ function rows(items: ShelfItem[]): ShelfItem[][] {
   return result;
 }
 
-/** まとまりの中身を、控えめな行に出す言葉。 */
 function volumeCount(series: Series): string {
   return `${series.volumes.length}冊`;
 }
 
-/** Web 小説の中で読者がいる場所: 最後に読んだ話。 */
 function useEpisode(book: Book) {
   const { lastRead } = useLibrary();
   return isWebNovel(book) ? lastReadChapter(book, lastRead) : undefined;
@@ -77,12 +75,9 @@ function BookTile({ book, onMenu }: WorkProps) {
         style={styles.tile}
       >
         <BookCover book={book} revision={revision} />
-        {/* どの表紙の下にも出す。すでにタイトルが載っているカードでも同じ。 */}
         <Text style={styles.tileTitle} numberOfLines={2}>
           {book.title}
         </Text>
-        {/* 書名の下は、どの作品でも著者。読みかけの話はその下の行に出す:
-        同じ位置に著者と話の題名が入ると、どちらなのか見分けられない。 */}
         {book.author !== "" && (
           <Text style={styles.tileDetail} numberOfLines={1}>
             {book.author}
@@ -100,11 +95,9 @@ function BookTile({ book, onMenu }: WorkProps) {
 
 interface SeriesProps {
   series: Series;
-  /** 押すと、本棚がその巻の一覧に切り替わる。 */
   onOpen: () => void;
 }
 
-/** まとめた作品のタイル: 表紙は最後に開いた巻のもの。 */
 function SeriesTile({ series, onOpen }: SeriesProps) {
   const { revision } = useLibrary();
   return (
@@ -115,7 +108,6 @@ function SeriesTile({ series, onOpen }: SeriesProps) {
       onPress={onOpen}
       style={styles.tile}
     >
-      {/* 冊数は表紙のバッジが出す。下の行は単体の作品と同じ: 高さがそろう。 */}
       <SeriesCover
         book={series.latest}
         count={series.volumes.length}
@@ -133,7 +125,6 @@ function SeriesTile({ series, onOpen }: SeriesProps) {
   );
 }
 
-/** まとめた作品を、リストの 1 行にしたもの。 */
 function SeriesRow({ series, onOpen }: SeriesProps) {
   const { revision } = useLibrary();
   return (
@@ -202,18 +193,11 @@ function Grid({ items, onMenu, onOpenSeries }: ShelfItemsProps) {
 }
 
 interface WorkRowProps extends WorkProps {
-  /** タイトルの下の、控えめな行。 */
   details: string[];
-  /** 文字の前に出すもの: 本棚のリストでの表紙。 */
   leading?: ReactNode;
-  /** 文字の後ろに出すもの。ここのボタンは単独で押される。 */
   trailing?: ReactNode;
 }
 
-/**
- * 作品をカードの 1 行にしたもの。行全体が作品を開き、1 つの面として
- * リップルが出る。長押しでメニューが出る。
- */
 function WorkRow({ book, details, leading, trailing, onMenu }: WorkRowProps) {
   return (
     <Link href={{ pathname: "/reader", params: { id: book.id } }} asChild>
@@ -249,7 +233,6 @@ function ShelfRow({ book, onMenu }: WorkProps) {
       onMenu={onMenu}
       leading=<BookCover book={book} compact revision={revision} />
       details={[
-        // サイトは名前を出す価値がある。ファイル由来であることには、ない。
         [book.author, isWebNovel(book) ? sourceName(book.source) : ""]
           .filter(Boolean)
           .join(" · "),
@@ -259,7 +242,6 @@ function ShelfRow({ book, onMenu }: WorkProps) {
   );
 }
 
-/** 本棚の作品: 読者が選んだ表示（グリッドかリスト）で並べる。 */
 function ShelfItems({
   view,
   items,
@@ -322,14 +304,9 @@ function HistoryRow({ book, onMenu }: WorkProps) {
   );
 }
 
-/** 本棚タブ: 読者が残している作品と、読んだ作品。 */
 export default function BookshelfScreen() {
   const library = useLibrary();
   const { closeBook } = usePlayback();
-  /**
-   * 本棚から外し、ミニプレーヤーにあるのがその本ならそこからも外す:
-   * 外したばかりのものを、続きを読むものとして出さない。
-   */
   function unshelve(book: Book): void {
     if (!isWebNovel(book)) {
       library.removeFileBook(book.id);
@@ -339,7 +316,6 @@ export default function BookshelfScreen() {
     closeBook(book.id);
   }
   const { lastRead } = library;
-  // 検索の欄は、虫めがねを押している間だけ出る。閉じると言葉も消える。
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState("");
   const shelf = library.shelf.filter((book) => matchesSearch(book, query));
@@ -347,48 +323,31 @@ export default function BookshelfScreen() {
     matchesSearch(item.book, query),
   );
   const filtered = query.trim() !== "";
-  // 巻の一覧を出している作品。本棚の同じページの中で切り替える: タブも
-  // ミニプレーヤーもそのまま残る。巻を消して 1 冊になった作品は、もう
-  // まとまりではないので、本棚に戻る。
   const [seriesId, setSeriesId] = useState<string | null>(null);
   const series = bySeries(library.shelf)
     .filter(isSeries)
     .find((item) => item.id === seriesId);
   const inSeries = series !== undefined;
-  // Android の「戻る」は、巻の一覧から本棚へ戻す。本棚のタブを見ている間
-  // だけ: ほかのタブに移っても本棚は残っているので、そこでの「戻る」を
-  // 取ってはならない。
-  useFocusEffect(
-    useCallback(() => {
-      if (!inSeries) {
-        return undefined;
-      }
-      const subscription = BackHandler.addEventListener(
-        "hardwareBackPress",
-        () => {
-          setSeriesId(null);
-          return true;
-        },
-      );
-      return () => {
-        subscription.remove();
-      };
-    }, [inSeries]),
+  const focused = useIsFocused();
+  const [backToShelf] = useState(() =>
+    onHardwareBack(() => {
+      setSeriesId(null);
+      return true;
+    }),
   );
-  // 本棚のタブをもう一度押すと、ほかのタブと同じく最初のページに戻る。
+  useSubscription(focused && inSeries ? backToShelf : null);
   const navigation = useNavigation();
-  useEffect(
-    () =>
+  const [shelfOnTabPress] = useState(
+    () => () =>
       navigation.addListener("tabPress" as never, () => {
         setSeriesId(null);
       }),
-    [navigation],
   );
+  useSubscription(shelfOnTabPress);
   const [tab, setTab] = useState<Tab>("shelf");
   const [view, setView] = useState<ShelfView>(loadShelfView);
   const [menu, setMenu] = useState<SheetMenu | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  // 履歴の日付にとっての「今日」。訪れるたびに取り直す。
   const [now, setNow] = useState(() => Date.now());
 
   function changeView(next: ShelfView) {
@@ -396,7 +355,6 @@ export default function BookshelfScreen() {
     saveShelfView(next);
   }
 
-  /** 作品を読んだ元のページ。Web 小説の場合。 */
   function siteAction(book: Book): SheetAction[] {
     const url = lastReadChapter(book, lastRead)?.url ?? book.url;
     if (!isWebNovel(book) || !url) {
@@ -413,7 +371,6 @@ export default function BookshelfScreen() {
     ];
   }
 
-  /** 作品について分かっていること。メニューの表に出す。 */
   function facts(book: Book): SheetDetail[] {
     const web = isWebNovel(book);
     const episode = web ? lastReadChapter(book, lastRead) : undefined;
@@ -443,7 +400,6 @@ export default function BookshelfScreen() {
               unshelve(book);
               return;
             }
-            // ファイルも一緒に消える。戻すには取り込み直すしかない。
             Alert.alert(
               "本棚から削除しますか？",
               `「${book.title}」と、取り込んだファイルを端末から削除します。読んでいた位置と辞書は残ります。`,
@@ -518,7 +474,6 @@ export default function BookshelfScreen() {
 
   const viewToggle = (
     <IconButton
-      // 押すと切り替わる先のレイアウトを示す。
       icon={view === "grid" ? "list" : "grid"}
       label={view === "grid" ? "リスト表示にする" : "グリッド表示にする"}
       size={20}
@@ -537,7 +492,6 @@ export default function BookshelfScreen() {
     />
   );
 
-  // まとめた作品の巻。本棚と同じ表示で、巻の順に並べる。
   const volumes = series && (
     <Screen
       title={series.title}
@@ -565,8 +519,6 @@ export default function BookshelfScreen() {
 
   return (
     <View style={styles.root}>
-      {/* 巻の一覧を出している間も、本棚は隠すだけで残す: 戻ったときに、
-      スクロールした位置がそのままになる。 */}
       <View
         style={[styles.root, inSeries && styles.hidden]}
         accessibilityElementsHidden={inSeries}
@@ -582,13 +534,10 @@ export default function BookshelfScreen() {
               setQuery("");
             }}
           />
-          // 引き下げると、本棚を端末から読み直す。
           refreshing={refreshing}
           onRefresh={() => {
             library.reload();
             setNow(Date.now());
-            // 読み込みは一瞬で終わる。スピナーは、引き下げへの応答として見える
-            // だけの時間残す。
             setRefreshing(true);
             setTimeout(() => {
               setRefreshing(false);
@@ -719,7 +668,6 @@ const styles = StyleSheet.create({
   },
   tabs: { flexDirection: "row", gap: 8 },
   tab: { flex: 1 },
-  // 端にあるアイコンボタンと同じ高さ。ボタンは余白の端まで届く。
   bar: {
     minHeight: 44,
     flexDirection: "row",

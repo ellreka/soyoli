@@ -16,23 +16,13 @@ import {
 } from "@/features/player/storage";
 import type { BracketVoices } from "@/features/speech/brackets";
 
-/**
- * バックアップに入るもの: 読み方辞書、どう読むか、本棚と履歴の Web 小説、
- * その読みかけの位置。Web 小説はメタ情報と最後に読んだ話だけで、本文は
- * 入らない。端末に保存したファイル（EPUB、PDF）も入らない。
- *
- * ファイルから読んだものは、書かれていた部分だけを持つ: ない部分は
- * 取り込まず、端末にあるものを残す。
- */
 export interface Backup {
   dictionary?: Dictionary;
   settings?: PlaybackSettings;
   works: Works;
-  /** 作品の読みかけの位置。`works` にある作品の分だけ。 */
   positions: Record<string, SavedPosition>;
 }
 
-/** バックアップファイルが自分のものだと分かる目印。 */
 const app = "soyoli";
 const version = 1;
 
@@ -44,17 +34,11 @@ function pad(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-/** 書き出すファイルの名前。書き出した日が入る。 */
 export function backupFileName(now: Date): string {
   const day = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}`;
   return `soyoli-backup-${day}.json`;
 }
 
-/**
- * ファイルに書く形。この形は永遠: 一度書き出されたファイルは、後の
- * バージョンでも取り込めなければならない。各部分は、端末に保存している
- * ファイルと同じ形にしてあり、読み戻すときも同じ検証を通る。
- */
 export function toBackupFile(
   backup: Required<Backup>,
   now: Date,
@@ -82,10 +66,6 @@ export function toBackupFile(
   };
 }
 
-/**
- * ファイルから読んだバックアップ。このアプリのバックアップでなければ null。
- * 中の壊れたものは落とす。
- */
 export function fromBackupFile(value: unknown): Backup | null {
   if (!isRecord(value) || value.app !== app) {
     return null;
@@ -111,11 +91,6 @@ export function fromBackupFile(value: unknown): Backup | null {
   };
 }
 
-/**
- * 声を、この端末にあるものだけにした設定。声の id は端末ごとのものなので、
- * 別の端末のバックアップが指す声はないことがある: そのときは端末の既定の
- * 声で読む。
- */
 export function withKnownVoices(
   settings: PlaybackSettings,
   known: readonly string[],
@@ -134,10 +109,6 @@ export function withKnownVoices(
   };
 }
 
-/**
- * 取り込む読みかけの位置: 端末の読みかけより優先される作品の分だけ
- * （`takesProgress`）。
- */
 export function positionsToRestore(
   backup: Backup,
   current: Works,
@@ -150,7 +121,6 @@ export function positionsToRestore(
   );
 }
 
-/** 辞書に入っている読みの数。 */
 export function readingCount(dictionary: Dictionary): number {
   return (
     dictionary.common.length +
@@ -158,7 +128,6 @@ export function readingCount(dictionary: Dictionary): number {
   );
 }
 
-/** 取り込む前に読者に伝える、バックアップの中身。 */
 export function backupSummary(backup: Backup): string {
   const replaced = [
     ...(backup.dictionary

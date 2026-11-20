@@ -81,10 +81,6 @@ it("sets ruby readings over their base characters", async () => {
     name: "次は漢字です。続きの文。",
   });
   const reading = within(paragraph).getByText("かんじ");
-  // 本文（17）の半分の大きさで、親文字 2 つの上に載る: 幅は読み 4 文字分
-  // （うち 1 文字分はゆとり）で、親文字の 34 に対して中央に置き、字形の上へ
-  // 持ち上げる — iOS（ここ）では、行の余分な高さの半分だけさらに上げる。
-  // アンカーがベースラインよりその分だけ下にあるため。
   expect(reading).toHaveStyle({
     color: colors.secondary,
     fontSize: 9,
@@ -93,8 +89,6 @@ it("sets ruby readings over their base characters", async () => {
     right: -1,
     bottom: 22,
   });
-  // 段落全体が 1 つの単位: ブロックとして幅いっぱいに印が付き、
-  // その中の文字が既読として薄くなることはない。
   expect(paragraph).toHaveStyle({ backgroundColor: colors.marker });
   expect(screen.getByTestId("current-paragraph")).not.toHaveStyle({
     color: colors.secondary,
@@ -118,10 +112,8 @@ it("reads paragraph by paragraph: marks the current one in full and selects by p
   const second = screen.getByRole("button", {
     name: "二段落目。二段落目の続き。",
   });
-  // ボタンは段落ごとに 1 つ。中の文は単位ではない。
   expect(screen.getAllByRole("button")).toHaveLength(2);
   expect(screen.queryByText("一段落目の続き。")).toBeNull();
-  // 今の段落は丸ごと印が付き、その前の段落は薄くなる。
   expect(second).toHaveStyle({ backgroundColor: colors.marker });
   expect(within(second).getByTestId("current-paragraph")).toHaveTextContent(
     "二段落目。二段落目の続き。",
@@ -130,7 +122,6 @@ it("reads paragraph by paragraph: marks the current one in full and selects by p
   expect(within(first).getByText("一段落目。一段落目の続き。")).toHaveStyle({
     color: colors.secondary,
   });
-  // 段落のどこをタップしても、その段落が選ばれる。
   await fireEvent(first, "press", { nativeEvent: { locationY: 700 } });
   expect(onSelect).toHaveBeenLastCalledWith(0);
   await fireEvent.press(second);
@@ -167,21 +158,17 @@ it("moves on a tap and plays on a second tap of the same paragraph", async () =>
   await fireEvent.press(first);
   expect(onSelect).toHaveBeenLastCalledWith(0);
   expect(onPlay).not.toHaveBeenCalled();
-  // 直後の 2 回目のタップで、最初のタップが選んだ段落から再生する。
   now += 200;
   await fireEvent.press(first);
   expect(onPlay).toHaveBeenLastCalledWith(0);
   expect(onSelect).toHaveBeenCalledTimes(1);
-  // 3 回目のタップで仕切り直し: これはまた 1 回のタップになる。
   now += 100;
   await fireEvent.press(first);
   expect(onSelect).toHaveBeenCalledTimes(2);
-  // ダブルタップにしては遅すぎる。
   now += 400;
   await fireEvent.press(first);
   expect(onSelect).toHaveBeenCalledTimes(3);
   expect(onPlay).toHaveBeenCalledTimes(1);
-  // 別々の段落への素早い 2 回のタップは、1 回のタップが 2 つ。
   now += 100;
   await fireEvent.press(second);
   expect(onSelect).toHaveBeenLastCalledWith(1);
@@ -214,7 +201,6 @@ it("slides the text to the reading position in a moment, once its rows are measu
   await fireEvent(list, "layout", {
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 500 } },
   });
-  // 2 つ目の段落は 3 行目: コンテンツの 900 下から始まる。
   const row = screen.getAllByRole("button")[1].parent;
   if (!row) {
     throw new Error("the paragraph is not in a cell of the list");
@@ -224,7 +210,6 @@ it("slides the text to the reading position in a moment, once its rows are measu
   });
   const placed = scrollToIndex.mock.calls.length;
   await rerender(view(1));
-  // プラットフォームのアニメーション付きスクロールは使わない。速くできないため。
   expect(scrollToIndex).toHaveBeenCalledTimes(placed);
   await act(async () => {
     jest.advanceTimersByTime(48);
@@ -235,12 +220,10 @@ it("slides the text to the reading position in a moment, once its rows are measu
   await act(async () => {
     jest.advanceTimersByTime(200);
   });
-  // ビューポートの 30% が段落の上に残る。
   expect(scrollToOffset).toHaveBeenLastCalledWith({
     offset: 750,
     animated: false,
   });
-  // ドラッグは、進行中のスライドに取って代わる。
   await rerender(view(0));
   await fireEvent(list, "scrollBeginDrag", scrollEvent);
   const frames = scrollToOffset.mock.calls.length;
@@ -287,8 +270,6 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
     "scrollToIndexFailed",
     { index: 0, averageItemLength: 50, highestMeasuredFrameIndex: 0 },
   );
-  // スクロールに失敗したら、段落が計測されるのを待ってやり直す。
-  // 見積もりのオフセットへは飛ばない。
   expect(scrollToOffset).not.toHaveBeenCalled();
   await fireEvent(
     screen.getByTestId("chapter-content"),
@@ -311,7 +292,6 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
   expect(scrollToIndex).toHaveBeenCalledTimes(calls);
   expect(scrollToOffset).toHaveBeenCalledTimes(offsets);
   await rerender(view(1));
-  // 段落 1 の前には段落 1 つと画像 1 つがある: リストでは 2 番目の項目。
   expect(scrollToIndex).toHaveBeenLastCalledWith({
     index: 2,
     viewPosition: 0,

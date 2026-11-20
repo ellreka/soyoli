@@ -7,30 +7,21 @@ import { colors } from "@/constants/theme";
 import { dictionaryParams } from "./DictionaryEditScreen";
 import type { DictionaryEntry, DictionaryScope } from "./entries";
 
-/** 項目について読まれるもの。辞書の一覧に出る形で。 */
 export function readingOf(entry: DictionaryEntry): string {
   return entry.reading === "" ? "読まない" : entry.reading;
 }
 
-/** ページの一覧に出る形の読み。どの辞書のものでも同じ。 */
 export interface ReadingRow {
   key: string;
-  /** 入力。スクリーンリーダー用: 長いパターンのこともある。 */
   name: string;
   input: string;
   reading: string;
-  /** その読みが何のためのものか。書いてある場合。 */
   description?: string;
   enabled: boolean;
   setEnabled: (enabled: boolean) => void;
-  /** 読みのエディタを開く。アプリ自身の読みにはない。 */
   edit?: () => void;
 }
 
-/**
- * 1 つの辞書（`scope`）の読みを行にする: それぞれがエディタを開き、
- * オン／オフのスイッチを持つ。
- */
 export function entryRows(
   entries: readonly DictionaryEntry[],
   scope: DictionaryScope,
@@ -60,11 +51,6 @@ export function entryRows(
   }));
 }
 
-/**
- * 読みを 入力 → 読み の形で出し、説明があればその下に出す。矢印は必ず
- * 見える: 左右それぞれが、2 行を超えたところで別々に切られる。読みは幅の
- * 45% までを保つので、長い入力（パターンは長くなりうる）に押し出されない。
- */
 function ReadingText({ row }: { row: ReadingRow }) {
   return (
     <>
@@ -86,7 +72,6 @@ function ReadingText({ row }: { row: ReadingRow }) {
   );
 }
 
-/** 読みを 1 枚のカードに並べる。1 件もなければ何も描かない。 */
 export function ReadingList({ rows }: { rows: readonly ReadingRow[] }) {
   if (rows.length === 0) {
     return null;

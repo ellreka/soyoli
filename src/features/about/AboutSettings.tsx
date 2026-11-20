@@ -6,10 +6,6 @@ import { rowColors } from "@/components/SettingsPage";
 import { colors } from "@/constants/theme";
 import { appVersion } from "./version";
 
-/**
- * 設定の一覧の「このアプリについて」: アプリのバージョンと、使っている
- * ライブラリのライセンスへの入口。
- */
 export function AboutSettings() {
   return (
     <NativeListGroup title="このアプリについて">

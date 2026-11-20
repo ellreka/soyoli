@@ -1,4 +1,3 @@
-// テストでのページめくり音: 頼まれたことを記録するだけのプレーヤー。
 const player = {
   volume: 1,
   play: jest.fn(),
@@ -12,9 +11,7 @@ const player = {
       },
     };
   }),
-  /** 音が鳴っている間にプラットフォームがするように、再生状態を知らせる。 */
   emit: (status) => {
-    // コピーを回す: リスナーは呼ばれている最中に自分を外すことがある。
     for (const listener of Array.from(player.listeners)) {
       listener(status);
     }

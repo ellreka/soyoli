@@ -10,10 +10,6 @@ import { listedSites } from "@/features/web/sites";
 import { usePlayback } from "./Playback";
 import { Transport } from "./Transport";
 
-/**
- * 本の出どころ: Web 小説のサイトのアイコンか、ファイルの表紙。見せる画像が
- * ない間は、ただの記号が代わりに出る。
- */
 function Thumbnail({ book }: { book: Book }) {
   const [failed, setFailed] = useState(false);
   const uri = isWebNovel(book)
@@ -43,13 +39,8 @@ function Thumbnail({ book }: { book: Book }) {
   );
 }
 
-/**
- * タブバーの上の「続きから」バー: 最後に開いた本 — タイトルと、今いる章や
- * 話 — と、その操作。
- */
 export function MiniPlayer() {
   const { state } = usePlayback();
-  // iOS にはリップルがない: 指が触れている間、バーの中身を薄くする。
   const [pressed, setPressed] = useState(false);
   const book = state.book;
   if (!book) {
@@ -57,9 +48,6 @@ export function MiniPlayer() {
   }
   return (
     <View style={styles.container} testID="mini-player">
-      {/* バー全体がビューアーを開く。端も、ボタンの周りの余白も含む:
-      リンクはすべての下に敷いてあり、その上に描かれたボタンだけが
-      自分でタップを受ける。 */}
       <Link href={{ pathname: "/reader", params: { id: book.id } }} asChild>
         <Pressable
           accessibilityLabel="ビューアーを開く"

@@ -54,10 +54,6 @@ function Secondary({ control }: { control: Control }) {
   );
 }
 
-/**
- * 再生の操作。コンパクト（ミニプレーヤー）: 再生だけ。
- * フル（リーダーのドック）: 前の章、再生、次の章。
- */
 export function Transport({ compact = false }: { compact?: boolean }) {
   const { toggle, move } = useControls();
 

@@ -19,7 +19,6 @@ it("samples the chosen voice, and stops the sample on leaving the page", async (
     screen.getByRole("button", { name: "基本音声の試聴を停止" }),
   );
   await fireEvent.press(screen.getByRole("button", { name: "基本音声の試聴" }));
-  // 別の声を選ぶと、前の声の試聴は止まる。
   await fireEvent.press(screen.getByRole("radio", { name: "端末標準" }));
   expect(
     screen.getByRole("button", { name: "基本音声の試聴" }),
@@ -29,7 +28,6 @@ it("samples the chosen voice, and stops the sample on leaving the page", async (
   await fireEvent.press(screen.getByRole("button", { name: "戻る" }));
   expect(screen).toHavePathname("/settings");
   expect(jest.mocked(Speech.stop).mock.calls.length).toBeGreaterThan(stops);
-  // 一覧には、使っている声と速度が出る。
   expect(
     screen.getByRole("button", { name: "音声設定" }),
   ).toHaveAccessibilityValue({ text: "端末標準 · 1x" });
@@ -87,22 +85,17 @@ it("sets the speed with a slider from 0.5 to 3, which the preset buttons also mo
     await screen.findByRole("link", { name: "サンプル作品を開く" }),
   );
   await fireEvent.press(screen.getByRole("button", { name: "音声設定" }));
-  // リーダーのシートには、設定タブのスイッチがない。
   expect(screen.queryByText("ページをめくる音")).toBeNull();
   const slider = await screen.findByRole("adjustable", { name: "速度" });
   expect(slider).toHaveProp("minimumValue", 0.5);
   expect(slider).toHaveProp("maximumValue", 3);
   expect(slider).toHaveProp("value", 1);
-  // プリセットを押すと、スライダーのつまみがその値に動く。
   await fireEvent.press(screen.getByRole("radio", { name: "1.7×" }));
   expect(screen.getByRole("adjustable", { name: "速度" })).toHaveProp(
     "value",
     1.7,
   );
-  // スライダーの上の値、選ばれたプリセット、リーダーのボタン。
   expect(screen.getAllByText("1.7×")).toHaveLength(3);
-  // スライダーはボタンにない速度にも届く。値はドラッグ中に表示され、
-  // 離したときに反映される。
   await fireEvent(slider, "RNCSliderSlidingStart", {
     nativeEvent: { value: 1.7 },
   });
@@ -121,7 +114,6 @@ it("sets the speed with a slider from 0.5 to 3, which the preset buttons also mo
     "value",
     2.8,
   );
-  // 一致するプリセットがないので、どれも選択されない。
   expect(screen.queryByRole("radio", { checked: true, name: /×$/ })).toBeNull();
 });
 
@@ -135,11 +127,8 @@ it("steps the speed and the pitch by a tenth with the buttons at the slider's en
   expect(speed()).toHaveProp("value", 1.1);
   await fireEvent.press(screen.getByRole("button", { name: "速度を下げる" }));
   await fireEvent.press(screen.getByRole("button", { name: "速度を下げる" }));
-  // ちょうど 0.1 刻みで、浮動小数の誤差が出ない。
   expect(speed()).toHaveProp("value", 0.9);
-  // スライダーの上の値と、リーダーのボタン。
   expect(screen.getAllByText("0.9×")).toHaveLength(2);
-  // 範囲の端では、その方向のボタンが無効になる。
   await fireEvent(speed(), "RNCSliderSlidingComplete", {
     nativeEvent: { value: 3 },
   });
@@ -154,7 +143,6 @@ it("steps the speed and the pitch by a tenth with the buttons at the slider's en
   await fireEvent.press(
     screen.getByRole("button", { name: "声の高さを下げる" }),
   );
-  // ちょうど 1 に戻った: 声そのままとして表示される。
   expect(pitch()).toHaveProp("value", 1);
   expect(screen.getByText("標準")).toBeOnTheScreen();
 });
@@ -173,7 +161,6 @@ it("opens the voices of brackets from the reader's sheet, on a page of their own
   expect(screen).toHavePathname("/bracket-voice");
   await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
   await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
-  // ページを開くとシートは閉じている。そうでないとページがシートの下になる。
   expect(screen).toHavePathname("/reader");
   expect(screen.queryByText("音声設定")).toBeNull();
 });
@@ -189,7 +176,6 @@ it("gives a kind of bracket a voice of its own from the settings", async () => {
   ]);
   await renderRouter(routes, { initialUrl: "/settings/brackets" });
   expect(screen.getByText("カッコ別の音声")).toBeOnTheScreen();
-  // どのカッコも、専用の声を決めるまでは基本の声で読まれる。
   await fireEvent.press(
     screen.getByRole("button", { name: "「」 会話の声 基本音声と同じ" }),
   );
@@ -207,7 +193,6 @@ it("gives a kind of bracket a voice of its own from the settings", async () => {
     "RNCSliderSlidingComplete",
     { nativeEvent: { value: 1.5 } },
   );
-  // 試聴は基本の高さではなく、そのカッコの高さで再生される。
   await fireEvent.press(screen.getByRole("button", { name: "声の試聴" }));
   expect(Speech.speak).toHaveBeenLastCalledWith(
     "こんにちは。これは音声の試聴です。",

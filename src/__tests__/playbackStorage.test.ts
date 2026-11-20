@@ -4,7 +4,6 @@ import {
   savedPositions,
 } from "@/features/player/storage";
 
-/** 偽の端末が持っているもの。パスごと。 */
 const mockDisk = new Map<string, string>();
 
 jest.mock("expo-file-system", () => {

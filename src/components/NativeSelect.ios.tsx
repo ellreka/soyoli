@@ -6,10 +6,6 @@ import { StyleSheet, View } from "react-native";
 import { colors } from "@/constants/theme";
 import type { NativeSelectProps } from "./NativeSelect";
 
-/**
- * iOS: 選ばれた選択肢を SwiftUI の menu ピッカーで出す。色はシステムの青
- * ではなくアプリの文字色。メニューは中央ではなく行頭に置く。
- */
 export function NativeSelect({ value, options, onChange }: NativeSelectProps) {
   return (
     <View style={styles.row}>

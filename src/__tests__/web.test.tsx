@@ -60,7 +60,6 @@ function Layout() {
   );
 }
 
-/** リーダーのルートの代役: ライブラリが渡してくるものを表示する。 */
 function ReaderProbe() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const book = useLibrary().books.find((item) => item.id === id);
@@ -145,16 +144,13 @@ it("shows each site with its icon, and leaves the adult sites out of Home", asyn
   expect(screen.getByTestId("site-icon-syosetu.org").props.source).toEqual({
     uri: "https://img.syosetu.org/image/apple-touch-icon-180x180.png",
   });
-  // アイコンが読み込めなければただの記号が残る。行はそれでも使える。
   await fireEvent(screen.getByTestId("site-icon-kakuyomu.jp"), "error");
   expect(screen.queryByTestId("site-icon-kakuyomu.jp")).toBeNull();
   expect(
     screen.getByRole("button", { name: "カクヨムを開く" }),
   ).toBeOnTheScreen();
 
-  // 成人向けサイトもほかと同じように読めるが、ホームには並べない。
   expect(screen.queryByText(/成人向け|R18|ノクターン/)).toBeNull();
-  // なろうも並べない: その作品はアドレスから開く。
   expect(screen.queryByText(/なろう/)).toBeNull();
   expect(
     screen.getByText("対応形式：.epub / .pdf（複数選べます）"),
@@ -162,20 +158,16 @@ it("shows each site with its icon, and leaves the adult sites out of Home", asyn
   await fireEvent.press(
     screen.getByRole("button", { name: "ハーメルンを開く" }),
   );
-  // サイトの年齢確認で答えた内容は、リーダーが出すリクエストとも共有される。
   expect(webView().props.sharedCookiesEnabled).toBe(true);
 });
 
 it("accepts only a URL in the Home address field", async () => {
   await renderHome();
-  // サイトの選択肢はない: キーワードでは検索しない。
   expect(screen.queryByRole("radio")).toBeNull();
   const field = screen.getByLabelText("URLを入力");
-  // 何も入力していない: 何も開かず、何も指摘されない。
   await fireEvent(field, "submitEditing");
   expect(screen).toHavePathname("/home");
   expect(screen.queryByRole("alert")).toBeNull();
-  // キーワードはメッセージ付きで断られる。入力し直すと消える。
   await fireEvent.changeText(field, "転生 魔法");
   await fireEvent(field, "submitEditing");
   expect(screen).toHavePathname("/home");
@@ -198,12 +190,10 @@ it("opens a URL typed on Home as is", async () => {
 
 it("empties the Home address field with its clear button", async () => {
   await renderHome();
-  // ボタンは何か入力して初めて出る。
   expect(screen.queryByRole("button", { name: "入力を消す" })).toBeNull();
   await fireEvent.changeText(screen.getByLabelText("URLを入力"), "kakuyomu.jp");
   await fireEvent.press(screen.getByRole("button", { name: "入力を消す" }));
   expect(screen.queryByRole("button", { name: "入力を消す" })).toBeNull();
-  // フィールドはまた空: 送信しても何も開かない。
   await fireEvent(screen.getByLabelText("URLを入力"), "submitEditing");
   expect(screen).toHavePathname("/home");
 });
@@ -211,7 +201,6 @@ it("empties the Home address field with its clear button", async () => {
 it("follows navigation state in the toolbar", async () => {
   await openSite();
   expect(screen.getByRole("button", { name: "進む" })).toBeDisabled();
-  // Web の履歴を戻るのは別の操作。閉じるボタンはいつでも閉じる。
   expect(screen.getByRole("button", { name: "戻る" })).toBeDisabled();
   expect(
     screen.getByRole("button", { name: "読み込みを中止" }),
@@ -256,20 +245,16 @@ it("navigates to the address edited in the toolbar", async () => {
   await openSite();
   await navigate({ url: "https://syosetu.com/", loading: false });
   const field = screen.getByLabelText("表示中のページ https://syosetu.com/");
-  // 編集は、短くした表示形ではなく生の URL から始まる。
   await fireEvent.changeText(field, "https://ncode.syosetu.com/n2267be/1/");
   await fireEvent(field, "submitEditing");
-  // 再マウントされた WebView が、送信された URL を読み込む。
   expect(webView().props.source).toEqual({
     uri: "https://ncode.syosetu.com/n2267be/1/",
   });
-  // Web でないスキームは、読み込まずに捨てる。
   await fireEvent.changeText(field, "file:///etc/hosts");
   await fireEvent(field, "submitEditing");
   expect(webView().props.source).toEqual({
     uri: "https://ncode.syosetu.com/n2267be/1/",
   });
-  // ホストだけの入力には https:// を前に付ける。
   await fireEvent.changeText(field, "kakuyomu.jp/works/1");
   await fireEvent(field, "submitEditing");
   expect(webView().props.source).toEqual({
@@ -318,7 +303,6 @@ it("refuses to open a page that is not a web URL", async () => {
   });
   expect(screen.getByText("ページを開けません")).toBeOnTheScreen();
   expect(screen.queryByTestId("webview")).toBeNull();
-  // 直リンクの後は戻る先がない: この画面の持ち主であるホームへ。
   await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
   expect(screen).toHavePathname("/home");
 });
@@ -346,7 +330,6 @@ describe("browser urls", () => {
   it("carries a URL through route params without losing its escapes", () => {
     const url = "https://kakuyomu.jp/search?q=%E8%BB%A2%E7%94%9F%26a";
     const { url: param } = browseParams(url);
-    // ルーターが値をデコードしてもしなくても、同じ URL が戻ってくる。
     expect(urlFromParam(param)).toBe(url);
     expect(urlFromParam(decodeURIComponent(param))).toBe(url);
     expect(urlFromParam(encodeURIComponent("file:///etc/hosts"))).toBeNull();
@@ -371,9 +354,7 @@ describe("browser urls", () => {
     expect(resolveWebAddress(" syosetu.com ")).toBe("https://syosetu.com");
     expect(resolveWebAddress("file:///etc/hosts")).toBeNull();
     expect(resolveWebAddress("")).toBeNull();
-    // キーワードでは検索しない。
     expect(resolveWebAddress("無職転生")).toBeNull();
-    // 点を含む文でも、ホストではない。
     expect(resolveWebAddress("俺は Lv.99")).toBeNull();
   });
 });
@@ -395,7 +376,6 @@ describe("episode detection", () => {
     await openSite();
     await loadPage(narouEpisodeUrl, narouEpisodeHtml);
 
-    // ページの HTML と作品の目次の両方が要求される。
     expect(commands.injectJavaScript).toHaveBeenCalledTimes(2);
     const injected = jest
       .mocked(commands.injectJavaScript)
@@ -404,7 +384,6 @@ describe("episode detection", () => {
     expect(injected[1]).toContain(
       'fetch("https://ncode.syosetu.com/n1234ab/?p=1")',
     );
-    // カードには話と作品の名前が出る。ラベルの行はない。
     expect(screen.getByTestId("episode-card")).toBeOnTheScreen();
     expect(screen.queryByText(/対応作品を検出/)).toBeNull();
     expect(
@@ -423,8 +402,9 @@ describe("episode detection", () => {
   it("bookmarks the detected work onto the shelf without opening it", async () => {
     await openSite();
     await loadPage(narouEpisodeUrl, narouEpisodeHtml);
-    // 作品を検出したり読んだりしても、本棚には入らない。
-    expect(saveLibrary).toHaveBeenLastCalledWith([]);
+    expect(saveLibrary).not.toHaveBeenCalledWith(
+      expect.arrayContaining([expect.anything()]),
+    );
     await fireEvent.press(screen.getByRole("button", { name: "本棚に追加" }));
     expect(screen).toHavePathname("/home/browse");
     expect(saveLibrary).toHaveBeenLastCalledWith([
@@ -440,7 +420,6 @@ describe("episode detection", () => {
         },
       },
     ]);
-    // 同じボタンでまた外せる。
     await fireEvent.press(screen.getByRole("button", { name: "本棚から削除" }));
     expect(saveLibrary).toHaveBeenLastCalledWith([]);
     expect(
@@ -484,8 +463,6 @@ describe("episode detection", () => {
 
     await fireEvent.press(screen.getByRole("button", openButton));
     expect(screen).toHavePathname("/reader");
-    // プローブは章のタイトルを表示する: 目次の 3 項目すべてと、その位置に
-    // 入った開いた話の内容。
     expect(
       screen.getByText(
         "テスト作品|作者名|第一話,第二話　出会い,第三話,次の100話",
@@ -507,7 +484,6 @@ describe("episode detection", () => {
     });
     await navigate({ url: narouEpisodeUrl, loading: false });
     await fireEvent.press(screen.getByRole("button", openButton));
-    // その目次は別のページのものだった。本は 1 話だけのまま。
     expect(
       screen.getByText("テスト作品|作者名|第二話　出会い,次の話"),
     ).toBeOnTheScreen();

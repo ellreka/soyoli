@@ -9,16 +9,10 @@ export interface NativeSliderProps {
   min: number;
   max: number;
   step: number;
-  /** ドラッグ中に指の下にある値。その場で表示するため。 */
   onChange?: (value: number) => void;
-  /** 反映する値: ドラッグが終わったとき（または値が落ち着いたとき）。 */
   onCommit: (value: number) => void;
 }
 
-/**
- * スライダー。このファイルは React Native 版で、Web とテスト用。iOS と
- * Android は、隣のファイルでプラットフォーム自身のスライダー（Expo UI）を描く。
- */
 export function NativeSlider({
   accessibilityLabel,
   value,
@@ -44,7 +38,7 @@ export function NativeSlider({
       }}
       onValueChange={(next) => {
         onChange?.(next);
-        // アクセシビリティの調整操作では、指を離すイベントが出るとは限らない。
+        // WORKAROUND: アクセシビリティの調整操作では、指を離すイベントが出るとは限らない。
         if (!dragging.current) {
           onCommit(next);
         }

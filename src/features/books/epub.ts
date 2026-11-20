@@ -71,20 +71,12 @@ function resolvePath(base: string, href: string): string {
   return parts.join("/");
 }
 
-/** 巻の番号。数として読めなければ undefined。 */
 function position(value: string | undefined): number | undefined {
   const digits = value?.trim() ?? "";
-  // 空の文字列は Number では 0 になる: 番号なしとして扱う。
   const number = digits === "" ? Number.NaN : Number(digits);
   return Number.isFinite(number) ? number : undefined;
 }
 
-/**
- * ファイルが名乗るシリーズ。EPUB 3 の `belongs-to-collection`（巻は
- * それを refines する `group-position`）を先に見て、なければ Calibre が書く
- * `calibre:series` と `calibre:series_index` を見る。どちらもなければ
- * undefined: 書名からは推測しない。
- */
 function seriesOf(metadata: XmlNode): BookSeries | undefined {
   const metas = elements(children(metadata), "meta");
   const refining = (id: string | undefined, property: string) =>
@@ -102,7 +94,6 @@ function seriesOf(metadata: XmlNode): BookSeries | undefined {
     const name = text(children(meta)).trim();
     const { id } = attrs(meta);
     const type = refining(id, "collection-type");
-    // 種類が書かれていて series でないもの（set: 全集など）は、巻ではない。
     if (!name || (type && text(children(type)).trim() !== "series")) {
       continue;
     }
@@ -120,14 +111,12 @@ function seriesOf(metadata: XmlNode): BookSeries | undefined {
   return number === undefined ? { name } : { name, position: number };
 }
 
-/** リフロー型の EPUB を、出どころに依存しないリーダー用の内容に解析する。 */
 export function parseEpub(bytes: Uint8Array, id: string): Book {
   if (bytes.length > 32 * 1024 * 1024) {
     throw new Error("ファイルは32 MB以下にしてください。");
   }
   let totalSize = 0;
   let entryCount = 0;
-  // 同期の unzip は展開後 64 MB までに制限している。もっと大きい本はスレッドを分けること。
   const files = unzipSync(bytes, {
     filter(entry) {
       totalSize += entry.originalSize;
@@ -214,8 +203,6 @@ export function parseEpub(bytes: Uint8Array, id: string): Book {
       return undefined;
     }
     if (!images.has(path)) {
-      // 画像を base64 でインライン化すると、すべてが JS のメモリに
-      // 載る。メモリが苦しくなったら、大きなアセットはファイルへ流すこと。
       images.set(
         path,
         `data:${item.mime};base64,${btoa(strFromU8(read(path), true))}`,
@@ -278,7 +265,6 @@ export function parseEpub(bytes: Uint8Array, id: string): Book {
       }
       const nested = content(children(node), chapterPath);
       const allowedTag = contentTags.find((value) => value === tag);
-      // 出版社のスタイルはわざと捨てる。EPUB と Web で同じ組版にするため。
       return allowedTag
         ? [{ type: "element", tag: allowedTag, children: nested }]
         : nested;

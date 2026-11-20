@@ -64,7 +64,6 @@ it("reads the series a file names itself, and guesses none from its title", () =
   const series = (metadata: string) =>
     parseEpub(fixture(opf(metadata)), "fixture").series;
   expect(series("")).toBeUndefined();
-  // EPUB 3
   expect(
     series(
       '<meta property="belongs-to-collection" id="c1">銀河の旅</meta><meta refines="#c1" property="collection-type">series</meta><meta refines="#c1" property="group-position">2</meta>',
@@ -73,13 +72,11 @@ it("reads the series a file names itself, and guesses none from its title", () =
   expect(
     series('<meta property="belongs-to-collection">銀河の旅</meta>'),
   ).toEqual({ name: "銀河の旅" });
-  // 全集などの set は巻ではない。
   expect(
     series(
       '<meta property="belongs-to-collection" id="c1">全集</meta><meta refines="#c1" property="collection-type">set</meta>',
     ),
   ).toBeUndefined();
-  // Calibre
   expect(
     series(
       '<meta name="calibre:series" content="銀河の旅"/><meta name="calibre:series_index" content="3.0"/>',

@@ -14,11 +14,6 @@ function back(): void {
   }
 }
 
-/**
- * 設定 › オープンソースライセンス › ライブラリ: そのライブラリの
- * ライセンスの本文。本文を同梱していないライブラリは、ライセンスの名前と
- * ページだけを出す。
- */
 export default function LicenseScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const item = id ? findPackage(id) : undefined;
@@ -45,7 +40,6 @@ export default function LicenseScreen() {
           accessibilityRole="link"
           accessibilityLabel={`${item.name}のページを開く`}
           onPress={() => {
-            // 開けなくても、ここですることはない: アドレスは見えている。
             Linking.openURL(homepage).catch(() => undefined);
           }}
         >
@@ -66,6 +60,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textDecorationLine: "underline",
   },
-  // 本文は桁をそろえて書かれていることが多い: 折り返しても読める大きさにする。
   text: { color: colors.secondary, fontSize: 12, lineHeight: 18 },
 });

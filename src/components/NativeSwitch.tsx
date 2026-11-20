@@ -8,11 +8,6 @@ export interface NativeSwitchProps {
   onValueChange: (value: boolean) => void;
 }
 
-/**
- * オン／オフのスイッチ。このファイルは React Native 版で、Web とテスト用。
- * iOS と Android は、隣のファイルでプラットフォーム自身のスイッチ（Expo UI）を
- * 描く。
- */
 export function NativeSwitch({
   accessibilityLabel,
   value,

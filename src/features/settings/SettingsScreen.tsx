@@ -1,6 +1,6 @@
 import { ListItem, Text } from "@expo/ui";
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { useState } from "react";
 
 import { ListSwitch } from "@/components/ListSwitch";
 import {
@@ -16,8 +16,8 @@ import { voiceName } from "@/features/player/AudioSettings";
 import { bracketKinds } from "@/features/speech/brackets";
 import { usePlayback } from "@/features/player/Playback";
 import { rowColors, SettingsPage } from "@/components/SettingsPage";
+import { unsubscribeNothing, useSubscription } from "@/lib/subscription";
 
-/** 行が何のためのものか。名前の下に、小さく secondary の色で出す。 */
 function description(text: string) {
   return (
     <Text textStyle={{ fontSize: 13, lineHeight: 18, color: colors.secondary }}>
@@ -26,11 +26,6 @@ function description(text: string) {
   );
 }
 
-/**
- * 設定タブの一覧: 一度決めたらそのままにしておくものを、種類ごとにまとめる。
- * 行は自分のページを開くか、スイッチになっている。声に関するものは
- * すべてここにあり、リーダーのシートからも同じ設定に届く。
- */
 export default function SettingsScreen() {
   const {
     settings,
@@ -42,13 +37,12 @@ export default function SettingsScreen() {
     setAuthorNotes,
   } = usePlayback();
   const { dictionary } = useDictionary();
-  // 選ばれた声の名前。端末の既定の声なら、一覧は要らない。
   const named = settings.voice === undefined || voices.length > 0;
-  useEffect(() => {
-    if (!named) {
-      loadVoices();
-    }
-  }, [named, loadVoices]);
+  const [voiceNames] = useState(() => (): (() => void) => {
+    loadVoices();
+    return unsubscribeNothing;
+  });
+  useSubscription(named ? null : voiceNames);
   const voice = voiceName(settings.voice, voices);
   const readings =
     dictionary.common.length +

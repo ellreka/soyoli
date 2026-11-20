@@ -8,7 +8,6 @@ import { NativeTextField } from "@/components/NativeTextField";
 import { colors } from "@/constants/theme";
 import { patternError, type DictionaryEntry } from "./entries";
 
-/** 読みを登録できる辞書。 */
 export interface DictionaryTarget {
   key: string;
   label: string;
@@ -16,21 +15,15 @@ export interface DictionaryTarget {
 }
 
 interface DictionaryFormProps {
-  /** フォームの最初の文字。読者がそこから単語まで削る。 */
   initialSurface: string;
   initialReading?: string;
-  /** 入力は正規表現。 */
   initialRegex?: boolean;
-  /** 入力は段落をまたいで照合される。 */
   initialMultiline?: boolean;
   initialDescription?: string;
-  /** 読みを入れられる場所と、最初に選ばれているもの。 */
   targets: DictionaryTarget[];
   initialTarget: string;
-  /** 保存するボタンのラベル。 */
   submitLabel: string;
   onSave: (target: string, entry: DictionaryEntry) => void;
-  /** 削除ボタンを出す。すでに登録されている読み用。 */
   onDelete?: () => void;
 }
 
@@ -39,11 +32,6 @@ const kinds = [
   { regex: true, label: "正規表現" },
 ] as const;
 
-/**
- * 読みの入力欄: 書かれたとおりの文字（またはそれを見つける正規表現）、
- * 読み上げ方、登録先の辞書。新しい読みの登録にも、編集にも使う —
- * 登録先は後から変えられる。
- */
 export function DictionaryForm({
   initialSurface,
   initialReading = "",
@@ -70,7 +58,6 @@ export function DictionaryForm({
     ...(description.trim() && { description: description.trim() }),
   };
   const error = regex && entry.surface ? patternError(entry.surface) : null;
-  // 読みは空のままでもよい: その文字は読まれなくなる。
   const ready = entry.surface.length > 0 && error === null;
 
   return (
@@ -129,7 +116,6 @@ export function DictionaryForm({
             は一致した全体に置き換わります。
           </Text>
         )}
-        {/* 両方の欄の下に置く。文字とその読みが離れないようにするため。 */}
         <View style={styles.option}>
           <Text style={styles.optionLabel}>段落をまたいで一致</Text>
           <NativeSwitch

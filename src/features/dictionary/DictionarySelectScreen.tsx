@@ -19,27 +19,17 @@ function close(): void {
   }
 }
 
-/**
- * 1 つの作品が使う辞書を選ぶ: なし、または既存の辞書 — 作品はこれで別の
- * 作品（別のサイトにある同じ物語、続きの巻）と読みを共有する。辞書は
- * ここでは作らない: 作品から初めて読みを登録したときに作られる。作品の
- * 読み（リーダーのメニュー）から開く。
- * 行を選んでも印が付くだけ: 作品の辞書が変わるのは 決定 のときで、画面を
- * 閉じれば元のまま。
- */
 export default function DictionarySelectScreen() {
   const { bookId } = useLocalSearchParams<{ bookId?: string }>();
   const { dictionary, assign } = useDictionary();
   const { books } = useLibrary();
   const book = books.find((item) => item.id === bookId);
   const current = setOf(dictionary, bookId);
-  // 選んでいる途中の選択。確定するまで何も変わらない。
   const [picked, setPicked] = useState<string | null>(current?.id ?? null);
   const changed = picked !== (current?.id ?? null);
 
   return (
-    // 全画面モーダルは独立したネイティブのウィンドウ: セーフエリアは下の
-    // 画面から受け継がず、ここで計測する。
+    // WORKAROUND: 全画面モーダルは独立したネイティブのウィンドウで、セーフエリアを下の画面から受け継がない。
     <SafeAreaProvider>
       <SafeAreaView style={styles.screen}>
         <View style={styles.header}>

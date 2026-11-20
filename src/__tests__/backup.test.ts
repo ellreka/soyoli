@@ -78,12 +78,10 @@ const backup: Required<Backup> = {
 };
 const now = new Date(2026, 10, 14, 9, 30);
 
-/** 別の端末で読み戻されるもの: ファイルを通ったバックアップ。 */
 function throughFile(value: Required<Backup> = backup): Backup {
   return fromBackupFile(JSON.parse(JSON.stringify(toBackupFile(value, now))))!;
 }
 
-/** 端末にある Web 小説。 */
 function works(update: Partial<Works> = {}): Works {
   return { books: [], lastRead: {}, bookmarked: [], history: {}, ...update };
 }
@@ -117,7 +115,6 @@ it("writes the dictionary, the voice settings and the web novels' metadata, neve
         readAt: 2000,
       },
     ],
-    // 位置は Web 小説の分だけ: ファイル由来の作品はバックアップに入らない。
     positions: { [web.id]: { chapterId: "2", paragraphIndex: 4 } },
   });
   expect(JSON.stringify(file)).not.toContain("本文。");
@@ -156,7 +153,6 @@ it("refuses a file that is not this app's backup", () => {
 it("drops what is broken in a file and leaves out the parts it does not have", () => {
   const read = fromBackupFile({
     app: "soyoli",
-    // 後のバージョンが書いたファイルも、読める部分は読む。
     version: 9,
     dictionary: {
       common: [
@@ -185,15 +181,12 @@ it("drops what is broken in a file and leaves out the parts it does not have", (
     sets: [],
     assigned: {},
   });
-  // 音声設定は書かれていない: 取り込まないので、端末の設定が残る。
   expect(read.settings).toBeUndefined();
   expect(read.works.books).toEqual([]);
-  // 作品のない位置は持たない。
   expect(read.positions).toEqual({});
   expect(backupSummary(read)).toBe(
     "読み方辞書（読み1件）は、バックアップの内容に置き換わります。",
   );
-  // 何も入っていないファイルには、取り込むものがない。
   expect(backupSummary(fromBackupFile({ app: "soyoli" })!)).toBe("");
 });
 
@@ -254,7 +247,6 @@ it("keeps the device's place in a work read more recently than the backup", () =
     history: { [web.id]: 3000 },
   });
   const merged = mergeWorks(current, read.works);
-  // 本棚には入る。読みかけは端末のまま。
   expect(merged.bookmarked).toEqual([web.id]);
   expect(merged.books).toEqual([web]);
   expect(merged.lastRead).toEqual({ [web.id]: "1" });
@@ -271,13 +263,11 @@ it("takes the backup's place in a work the backup read later", () => {
     history: { [web.id]: 1000 },
   });
   const merged = mergeWorks(current, read.works);
-  // 読み込み済みの話はそのまま: 本は置き換えない。
   expect(merged.books).toEqual([web]);
   expect(merged.bookmarked).toEqual([web.id]);
   expect(merged.lastRead).toEqual({ [web.id]: "2" });
   expect(merged.history).toEqual({ [web.id]: 2000 });
   expect(positionsToRestore(read, current)).toEqual(read.positions);
-  // 開いている作品は今読んでいるもの: 読みかけは変えない。
   expect(mergeWorks(current, read.works, web.id).lastRead).toEqual({
     [web.id]: "1",
   });
@@ -325,7 +315,6 @@ it("keeps the history within its limit after a merge", () => {
   );
   const merged = mergeWorks(works({ history }), throughFile().works);
   expect(Object.keys(merged.history)).toHaveLength(historyLimit);
-  // バックアップの作品のほうが古い: 履歴からは落ちるが、本棚には入る。
   expect(merged.history[web.id]).toBeUndefined();
   expect(merged.bookmarked).toEqual([web.id]);
 });

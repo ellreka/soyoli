@@ -26,7 +26,6 @@ import {
 } from "@/features/web/episode";
 import { workPageOf, workUrlOf } from "@/features/web/sites";
 
-/** 段落の間にある改行だけのテキストノードを落とす。 */
 function blocks(nodes: ContentNode[]): ContentNode[] {
   return nodes.filter((node) => node.type !== "text" || node.text.trim());
 }
@@ -166,7 +165,6 @@ describe("hameln", () => {
       previousUrl: "https://syosetu.org/novel/123456/1.html",
       nextUrl: "https://syosetu.org/novel/123456/3.html",
     });
-    // 前書きと後書きは本文とは別に持つ。
     expect(blocks(episode!.preface)[0]).toEqual(text("前書きです。"));
     expect(blocks(episode!.afterword)).toContainEqual(text("後書きです。"));
     expect(blocks(episode!.body)).toEqual([
@@ -198,7 +196,6 @@ describe("hameln", () => {
       previousUrl: "https://syosetu.org/novel/123456/1.html",
       nextUrl: "https://syosetu.org/novel/123456/3.html",
     });
-    // 一覧のタイトルは、その下に書かれた日付を含まない。
     expect(parseToc(hamelnPhoneWorkHtml, hamelnWorkUrl)).toEqual(
       parseToc(hamelnWorkHtml, hamelnWorkUrl),
     );
@@ -225,7 +222,6 @@ describe("hameln", () => {
         { id: "3", title: "第三話　続き", url: `${hamelnWorkUrl}3.html` },
       ],
     });
-    // 一覧のある作品ページは、話ではない。
     expect(parseEpisode(hamelnWorkHtml, hamelnWorkUrl)).toBeNull();
   });
 
@@ -294,17 +290,14 @@ describe("episode pages", () => {
       title: "テスト作品",
       author: "作者名",
       url: narouEpisodeUrl,
-      // ページの「2/3」から。
       episodeCount: 3,
       chapters: [
         {
           id: "2",
           title: "第二話　出会い",
           url: narouEpisodeUrl,
-          // ページのタイトルが本文の先頭に来るので、表示も読み上げもされる。
           content: episodeContent(episode),
         },
-        // 目次がなくても、ページの「次へ」リンクで次の話にたどり着ける。
         {
           id: "3",
           title: "次の話",
@@ -336,11 +329,9 @@ describe("episode pages", () => {
           url: "https://ncode.syosetu.com/n1234ab/3/",
         },
       ],
-      // ページャーの 次へ リンクが、次の目次ページを知らせる。
       previousUrl: undefined,
       nextUrl: "https://ncode.syosetu.com/n1234ab/?p=2",
     });
-    // 話のページは目次ではない。
     expect(parseToc(narouTocHtml, kakuyomuEpisodeUrl)).toEqual({
       entries: [],
     });
@@ -357,7 +348,6 @@ describe("episode pages", () => {
       hr,
       ...episode.afterword,
     ]);
-    // 前書きも後書きもない話は、本文だけのまま。
     const plain = { ...episode, preface: [], afterword: [] };
     expect(episodeContent(plain, true)).toEqual(episodeContent(episode));
     expect(episodeToBook(episode, undefined, true).chapters[0].content).toEqual(
@@ -376,12 +366,10 @@ describe("episode pages", () => {
         url: "https://ncode.syosetu.com/n1234ab/1/",
         content: [],
       },
-      // 開いた話は、解析した内容を目次のタイトルの下に保つ。
       {
         id: "2",
         title: "第二話　出会い",
         url: narouEpisodeUrl,
-        // ページのタイトルが本文の先頭に来るので、表示も読み上げもされる。
         content: episodeContent(episode),
       },
       {
@@ -390,7 +378,6 @@ describe("episode pages", () => {
         url: "https://ncode.syosetu.com/n1234ab/3/",
         content: [],
       },
-      // 目次の続きには、窓の端からだけでなく、どこからでもたどり着ける。
       {
         id: "https://ncode.syosetu.com/n1234ab/?p=2",
         title: "次の100話",
@@ -413,18 +400,12 @@ describe("episode pages", () => {
     });
     expect(
       book.chapters.map((chapter) => `${chapter.id}:${chapter.title}`),
-    ).toEqual([
-      "1:第一話",
-      "2:第二話　出会い",
-      // 話の「次へ」リンクは、一覧が知っていた範囲の先まで届く。
-      "3:次の話",
-    ]);
+    ).toEqual(["1:第一話", "2:第二話　出会い", "3:次の話"]);
   });
 });
 
 describe("table of contents", () => {
   const kakuyomuWorkUrl = "https://kakuyomu.jp/works/1000000000000000001";
-  // 作品ページは、一覧を描く元になるデータを一緒に送ってくる。
   const store = {
     "Work:1000000000000000001": {
       id: "1000000000000000001",
@@ -434,7 +415,6 @@ describe("table of contents", () => {
         { __ref: "TableOfContentsChapter:2" },
       ],
     },
-    // 隣に並ぶ作品（関連作品）が紛れ込んではならない。
     "Work:9": { tableOfContentsV2: [{ __ref: "TableOfContentsChapter:9" }] },
     "TableOfContentsChapter:1": {
       chapter: { __ref: "Chapter:1" },
@@ -473,16 +453,13 @@ describe("table of contents", () => {
     "</script></body></html>";
 
   it("finds the page that lists the episodes around one", () => {
-    // なろうは 100 話ごとにページを分ける: その話を含むページ。
     expect(tocUrlOf("https://ncode.syosetu.com/n1234ab/2/")).toBe(
       "https://ncode.syosetu.com/n1234ab/?p=1",
     );
     expect(tocUrlOf("https://ncode.syosetu.com/n1234ab/250/")).toBe(
       "https://ncode.syosetu.com/n1234ab/?p=3",
     );
-    // カクヨム: 作品ページが一覧全体を持つ。
     expect(tocUrlOf(kakuyomuEpisodeUrl)).toBe(kakuyomuWorkUrl);
-    // 短編には一覧がない。
     expect(tocUrlOf(narouShortUrl)).toBeNull();
   });
 
@@ -506,7 +483,6 @@ describe("table of contents", () => {
         },
       ],
     });
-    // データのないページ、データの壊れたページは、何も並べない。
     expect(parseToc("<html></html>", kakuyomuWorkUrl)).toEqual({ entries: [] });
     expect(
       parseToc(
@@ -544,7 +520,6 @@ describe("table of contents", () => {
     const page = (number: number) =>
       `https://ncode.syosetu.com/n1234ab/?p=${number}`;
     const loaded: ContentNode[] = [text("本文。")];
-    // 起動後の本棚にあるのは、最後に読んだ話だけ。
     const restored: Book = {
       id: "narou-n1234ab",
       source: "narou",
@@ -571,12 +546,9 @@ describe("table of contents", () => {
       ...entries(201, 300).map((entry) => entry.title),
       "次の100話",
     ]);
-    // 読んでいる話は本文を保つ。
     expect(
       third.chapters.find((chapter) => chapter.id === "250")?.content,
     ).toBe(loaded);
-    // 前のページを取得すると、その行が置き換わる。後ろのページはすでに
-    // 本に入っているので、行は付かない。
     const second = mergeToc(
       third,
       { entries: entries(101, 200), previousUrl: page(1), nextUrl: page(3) },
@@ -630,7 +602,6 @@ describe("episode position", () => {
     const book = episodeToBook(episode, toc);
     const at = book.chapters.findIndex((chapter) => chapter.id === "2");
     expect(episodePosition(book, at)).toEqual({ number: 2, total: 3 });
-    // 次の目次ページの行は話ではない。
     expect(episodePosition(book, book.chapters.length - 1)).toBeUndefined();
   });
 
@@ -645,7 +616,6 @@ describe("episode position", () => {
   });
 
   it("counts a whole-work TOC, but not a book that has only what was read", () => {
-    // 目次を取得する前: 並びは作品の順番ではない。
     const restored = web("kakuyomu", ["10", "20"]);
     expect(episodePosition(restored, 0)).toBeUndefined();
     const merged = mergeToc(restored, {

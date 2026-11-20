@@ -1,23 +1,22 @@
 import { router } from "expo-router";
-import { useEffect } from "react";
+import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { NativeRow } from "@/components/NativeRow";
 import { RowGroup } from "@/components/RowGroup";
 import { colors } from "@/constants/theme";
 import { bracketKinds } from "@/features/speech/brackets";
+import { unsubscribeNothing, useSubscription } from "@/lib/subscription";
 import { usePlayback } from "./Playback";
 import { pitchLabel } from "./VoiceFields";
 
-/**
- * カッコの種類と、それぞれを読む声。行を押すとその種類のエディタが開く。
- */
 export function BracketVoiceList() {
   const { settings, voices, loadVoices } = usePlayback();
-  // これまでに選んだ声の名前。
-  useEffect(() => {
+  const [voiceNames] = useState(() => (): (() => void) => {
     loadVoices();
-  }, [loadVoices]);
+    return unsubscribeNothing;
+  });
+  useSubscription(voiceNames);
 
   return (
     <View style={styles.section}>
@@ -38,8 +37,7 @@ export function BracketVoiceList() {
           return (
             <NativeRow
               key={kind.id}
-              // 名前を先に: 全角のカッコは空白から始まるので、先に置くとタイトルが
-              // 下の行より内側に入ってしまう。
+              // WORKAROUND: 全角のカッコは字面の前に空きがあるので、名前を先に置く。カッコから始めると、タイトルが下の行より内側に入る。
               title={`${kind.label} ${kind.symbol}`}
               detail={detail}
               accessibilityLabel={`${kind.symbol} ${kind.label}の声 ${detail}`}

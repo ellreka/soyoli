@@ -5,10 +5,10 @@ import { NativeButton } from "@/components/NativeButton";
 import { NativeSelect } from "@/components/NativeSelect";
 import { StepSlider } from "@/components/StepSlider";
 import { colors } from "@/constants/theme";
+import { useSubscription } from "@/lib/subscription";
 import { usePlayback } from "./Playback";
 import { maxPitch, minPitch } from "@/features/speech/voiceLimits";
 
-/** 高さの表示のしかた: 1 は声そのまま。 */
 export function pitchLabel(pitch: number): string {
   return pitch === 1 ? "標準" : pitch.toFixed(1);
 }
@@ -18,9 +18,7 @@ interface PitchFieldProps {
   onChange: (pitch: number) => void;
 }
 
-/** 声の高さ: スライダー、その ±、声そのままに戻す手段。 */
 export function PitchField({ value, onChange }: PitchFieldProps) {
-  // スライダーをドラッグしている間に表示する高さ。それ以外は null。
   const [dragged, setDragged] = useState<number | null>(null);
   return (
     <View style={styles.section}>
@@ -57,19 +55,12 @@ export function PitchField({ value, onChange }: PitchFieldProps) {
 }
 
 interface VoiceFieldProps {
-  /** 一覧の見出し。スクリーンリーダーがグループを呼ぶ名前でもある。 */
   label: string;
-  /** 選ばれた声。なければ端末の既定の声。 */
   value: string | undefined;
-  /** 声を試聴するときの高さ。 */
   pitch: number;
   onChange: (voice: string | undefined) => void;
 }
 
-/**
- * 端末の日本語の声: 1 つを選ぶメニューと、選んだ声の試聴を再生するボタン。
- * 声の読み込み（`loadVoices`）と、離れるときに試聴を止めるのは呼び出し側。
- */
 export function VoiceField({ label, value, pitch, onChange }: VoiceFieldProps) {
   const {
     voices,
@@ -81,6 +72,11 @@ export function VoiceField({ label, value, pitch, onChange }: VoiceFieldProps) {
     previewVoice,
     stopPreview,
   } = usePlayback();
+  const [pickingVoice] = useState(() => (): (() => void) => {
+    loadVoices();
+    return stopPreview;
+  });
+  useSubscription(pickingVoice);
   const options = [
     { value: "", label: "端末標準" },
     ...voices.map((voice) => ({
@@ -89,16 +85,13 @@ export function VoiceField({ label, value, pitch, onChange }: VoiceFieldProps) {
         voice.quality === "Enhanced" ? `${voice.name}（拡張）` : voice.name,
     })),
   ];
-  // 選ばれた声は、必ず選択肢の中にある。一覧の読み込み前でも、端末から
-  // その声がなくなっていても: 今の値を含まないメニューは、別の値を表示し、
-  // 設定してしまうことがある。
+  // WORKAROUND: 今の値を含まないメニューは、別の値を表示し、設定してしまうことがある。選ばれた声は必ず選択肢に入れる。
   if (
     value !== undefined &&
     !options.some((option) => option.value === value)
   ) {
     options.push({ value, label: "選択した音声" });
   }
-  // 試聴は選ばれた声のもの: 別の声を選ぶと止まる。
   const listening = preview !== null && preview.voice === value;
   return (
     <View style={styles.section}>

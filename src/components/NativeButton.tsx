@@ -5,30 +5,19 @@ import { Icon, type IconName } from "./Icon";
 import { Pressable } from "./Pressable";
 
 export interface NativeButtonProps {
-  /** 見える文字。 */
   label: string;
-  /** ラベルより詳しく言えるとき、スクリーンリーダーが代わりに読む。 */
   accessibilityLabel?: string;
   accessibilityHint?: string;
-  /** 文字の前に置くシンボル。 */
   icon?: IconName;
-  /** filled: 主要なアクション。outlined: 選択肢やチップ。text: 控えめ。 */
   variant?: "filled" | "outlined" | "text";
-  /** チップやセグメント用: その部品が何であるかと、オンかどうか。 */
   role?: "button" | "tab" | "radio";
   selected?: boolean;
   disabled?: boolean;
-  /** 使える幅いっぱいに伸びる。 */
   fill?: boolean;
-  /** 左右の余白を減らす。1 行に多くのボタンを並べるとき用。 */
   compact?: boolean;
   onPress?: () => void;
 }
 
-/**
- * 文字のボタン。このファイルは React Native 版で、Web とテスト用。iOS と
- * Android は、隣のファイルでプラットフォーム自身のボタン（Expo UI）を描く。
- */
 export function NativeButton({
   label,
   accessibilityLabel,

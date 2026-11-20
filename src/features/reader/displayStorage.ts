@@ -1,6 +1,5 @@
 import { jsonFile } from "@/lib/jsonFile";
 
-/** リーダーの表示設定。読む場所（`Display`）で検証する。 */
 const file = jsonFile("reader-display.json");
 
 export function loadDisplay(): Record<string, unknown> | null {
