@@ -11,7 +11,15 @@ import {
 import { renderRouter } from "expo-router/testing-library";
 import * as Clipboard from "expo-clipboard";
 import * as Speech from "expo-speech";
-import { narouEpisodeHtml, narouTocHtml } from "@/__fixtures__/webPages";
+import {
+  narouEpisodeHtml,
+  narouTocHtml,
+  pixivEpisodeDataUrl,
+  pixivEpisodeJson,
+  pixivEpisodeUrl,
+  pixivTocJson,
+  pixivTocUrl,
+} from "@/__fixtures__/webPages";
 import { loadLibrary } from "@/features/library/libraryStorage";
 
 it("copies the source URL and opens web novels in the browser from the menu", async () => {
@@ -458,5 +466,41 @@ it("fetches the episode being read again from the menu", async () => {
   await waitFor(() => {
     expect(screen.getByRole("button", { name: "再生" })).toBeEnabled();
   });
+  fetchSpy.mockRestore();
+});
+
+it("fetches a saved pixiv novel's text and series from the site's JSON when it is opened again", async () => {
+  jest.mocked(loadLibrary).mockReturnValue([
+    {
+      id: "pixiv-series-77",
+      source: "pixiv",
+      title: "テスト連作",
+      author: "書き手",
+      episode: { id: "2002", title: "第二話　再会", url: pixivEpisodeUrl },
+    },
+  ]);
+  const fetchSpy = jest.spyOn(global, "fetch").mockImplementation(
+    (input) =>
+      Promise.resolve({
+        ok: true,
+        text: () =>
+          Promise.resolve(
+            input === pixivTocUrl ? pixivTocJson : pixivEpisodeJson,
+          ),
+      }) as unknown as Promise<Response>,
+  );
+  await renderRouter(routes, { initialUrl: "/reader?id=pixiv-series-77" });
+  await screen.findByTestId("viewer-player");
+  await waitFor(() => {
+    expect(fetchSpy).toHaveBeenCalledWith(pixivTocUrl, expect.anything());
+  });
+  expect(fetchSpy).toHaveBeenCalledWith(pixivEpisodeDataUrl, expect.anything());
+  expect(fetchSpy).not.toHaveBeenCalledWith(pixivEpisodeUrl, expect.anything());
+  expect(await screen.findByText("「待って」")).toBeOnTheScreen();
+  await fireEvent.press(screen.getByRole("button", { name: "目次" }));
+  expect(
+    await screen.findByRole("radio", { name: "第一話　始まり" }),
+  ).toBeOnTheScreen();
+  expect(screen.getByRole("radio", { name: "第三話　別れ" })).toBeOnTheScreen();
   fetchSpy.mockRestore();
 });

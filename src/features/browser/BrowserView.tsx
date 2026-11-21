@@ -138,6 +138,7 @@ export function BrowserView({ startUrl, onClose }: BrowserViewProps) {
       canGoForward: event.canGoForward,
       loading: event.loading,
     });
+    detection.onNavigate(event.url, event.loading);
     if (event.canGoBack && !backInPage) {
       setBackInPage({ subscribe: onHardwareBack(goBackInPage) });
     }

@@ -12,10 +12,19 @@ import {
   narouShortHtml,
   narouShortUrl,
   narouTocHtml,
+  pixivAdultEpisodeJson,
+  pixivEpisodeDataUrl,
+  pixivEpisodeJson,
+  pixivEpisodeUrl,
+  pixivSingleJson,
+  pixivSingleUrl,
+  pixivTocJson,
+  pixivTocUrl,
 } from "@/__fixtures__/webPages";
 import type { Book, ContentNode } from "@/features/books/book";
 import {
   episodeContent,
+  episodeDataUrl,
   episodePosition,
   episodeToBook,
   mayBeEpisodeUrl,
@@ -258,6 +267,11 @@ describe("episode pages", () => {
     [hamelnEpisodeUrl, true],
     ["https://h.syosetu.org/novel/123456/2.html", true],
     [hamelnWorkUrl, true],
+    [pixivEpisodeUrl, true],
+    ["https://www.pixiv.net/en/novel/show.php?id=2002#2", true],
+    ["https://www.pixiv.net/novel/series/77", false],
+    ["https://www.pixiv.net/novel/unlisted/abcDEF123", false],
+    ["https://www.pixiv.net/artworks/2002", false],
     ["https://syosetu.org/", false],
     ["https://syosetu.org/?mode=rank", false],
     ["https://syosetu.org/user/1234/", false],
@@ -631,5 +645,111 @@ describe("episode position", () => {
   it("includes episodes published after the TOC was fetched", () => {
     const book = web("hameln", ["1", "2", "3"], 2);
     expect(episodePosition(book, 2)).toEqual({ number: 3, total: 3 });
+  });
+});
+
+describe("pixiv", () => {
+  it("reads an episode from the JSON the page itself loads, not from the page", () => {
+    expect(episodeDataUrl(pixivEpisodeUrl)).toBe(pixivEpisodeDataUrl);
+    expect(episodeDataUrl(narouEpisodeUrl)).toBe(narouEpisodeUrl);
+    expect(parseEpisode(pixivEpisodeJson, pixivEpisodeUrl)).toMatchObject({
+      source: "pixiv",
+      url: pixivEpisodeUrl,
+      workId: "series-77",
+      workTitle: "テスト連作",
+      author: "書き手",
+      episodeId: "2002",
+      title: "第二話　再会",
+      previousUrl: "https://www.pixiv.net/novel/show.php?id=2001",
+      nextUrl: "https://www.pixiv.net/novel/show.php?id=2003",
+    });
+  });
+
+  it("turns pixiv's markup into paragraphs, ruby, headings and page breaks", () => {
+    const episode = parseEpisode(pixivEpisodeJson, pixivEpisodeUrl);
+    expect(episode!.body).toEqual([
+      element("p", [
+        text("　"),
+        element("ruby", [text("魔法"), element("rt", [text("まほう")])]),
+        text("を使った。"),
+      ]),
+      element("p", [element("br", [])]),
+      element("p", [text("「待って」")]),
+      element("hr", []),
+      element("h2", [text("その夜")]),
+      element("p", [text("続きはこちら")]),
+      element("p", [text("終わり。")]),
+    ]);
+  });
+
+  it("treats a novel outside a series as a work of one episode", () => {
+    expect(parseEpisode(pixivSingleJson, pixivSingleUrl)).toMatchObject({
+      workId: "novel-3003",
+      workTitle: "読み切り",
+      episodeId: "3003",
+      previousUrl: undefined,
+      nextUrl: undefined,
+    });
+    expect(tocUrlOf(pixivSingleUrl, "novel-3003")).toBeNull();
+    expect(workUrlOf("pixiv-novel-3003")).toBe(pixivSingleUrl);
+  });
+
+  it("does not detect age-restricted novels yet", () => {
+    expect(parseEpisode(pixivAdultEpisodeJson, pixivEpisodeUrl)).toBeNull();
+  });
+
+  it("rejects a response for another novel, an error and a page that is not JSON", () => {
+    expect(parseEpisode(pixivSingleJson, pixivEpisodeUrl)).toBeNull();
+    expect(
+      parseEpisode(
+        JSON.stringify({ error: true, message: "見つかりません", body: [] }),
+        pixivEpisodeUrl,
+      ),
+    ).toBeNull();
+    expect(
+      parseEpisode("<html>Just a moment...</html>", pixivEpisodeUrl),
+    ).toBeNull();
+  });
+
+  it("finds the series' table of contents from the work, since the episode URL does not name it", () => {
+    expect(tocUrlOf(pixivEpisodeUrl)).toBeNull();
+    expect(tocUrlOf(pixivEpisodeUrl, "series-77")).toBe(pixivTocUrl);
+    expect(workUrlOf("pixiv-series-77")).toBe(
+      "https://www.pixiv.net/novel/series/77",
+    );
+  });
+
+  it("lists the available episodes of a series", () => {
+    expect(parseToc(pixivTocJson, pixivTocUrl).entries).toEqual([
+      {
+        id: "2001",
+        title: "第一話　始まり",
+        url: "https://www.pixiv.net/novel/show.php?id=2001",
+      },
+      { id: "2002", title: "第二話　再会", url: pixivEpisodeUrl },
+      {
+        id: "2003",
+        title: "第三話　別れ",
+        url: "https://www.pixiv.net/novel/show.php?id=2003",
+      },
+    ]);
+  });
+
+  it("builds a book spanning the series with the open episode filled in", () => {
+    const episode = parseEpisode(pixivEpisodeJson, pixivEpisodeUrl)!;
+    const book = episodeToBook(episode, parseToc(pixivTocJson, pixivTocUrl));
+    expect(book).toMatchObject({
+      id: "pixiv-series-77",
+      source: "pixiv",
+      title: "テスト連作",
+      episodeCount: 3,
+    });
+    expect(book.chapters.map((chapter) => chapter.id)).toEqual([
+      "2001",
+      "2002",
+      "2003",
+    ]);
+    expect(book.chapters[1].content.length).toBeGreaterThan(0);
+    expect(episodePosition(book, 1)).toEqual({ number: 2, total: 3 });
   });
 });

@@ -67,7 +67,7 @@ export function withLoadedPages(next: Book, open: Book): Book {
   };
 }
 
-export const webSources = ["narou", "kakuyomu", "hameln"] as const;
+export const webSources = ["narou", "kakuyomu", "hameln", "pixiv"] as const;
 export type WebSource = (typeof webSources)[number];
 
 export function isWebSource(value: unknown): value is WebSource {
@@ -81,6 +81,7 @@ export const sourceLabels: Record<BookSource, string> = {
   narou: "小説家になろう",
   kakuyomu: "カクヨム",
   hameln: "ハーメルン",
+  pixiv: "pixiv",
 };
 
 export type BookSeries = {

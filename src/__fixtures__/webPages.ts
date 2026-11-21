@@ -199,3 +199,53 @@ export const hamelnPhoneWorkHtml = `<!DOCTYPE HTML>
 <li><strong>第一章</strong></li><li class="episode-list__item"><a href="./1.html"  class="id2"><span id="sio1" class=""><span class="episode-list__mark"></span>第一話　始まり</span><br><span class="date"><time>2026/01/01 12:00</time> (改：2026/01/05 12:00)</span></a></li><li class="episode-list__item"><a href="./2.html"  class="id1"><span id="sio2" class=""><span class="episode-list__mark"></span>第二話　題</span><br><span class="date">2026/01/02 12:00</span></a></li><li class="episode-list__item"><a href="./3.html"  class="id2" id="last_volume_link"><span id="sio3" class=""><span class="episode-list__mark"></span>第三話　続き</span><br><span class="date">2026/01/03 12:00</span></a></li>
 </ul>
 </body></html>`;
+
+export const pixivEpisodeUrl = "https://www.pixiv.net/novel/show.php?id=2002";
+export const pixivEpisodeDataUrl = "https://www.pixiv.net/ajax/novel/2002";
+export const pixivTocUrl =
+  "https://www.pixiv.net/ajax/novel/series/77/content_titles";
+
+const pixivNovel = {
+  id: "2002",
+  title: "第二話　再会",
+  userName: "書き手",
+  xRestrict: 0,
+  content:
+    "　[[rb:魔法 > まほう]]を使った。\n\n「待って」\n[newpage]\n[chapter:その夜]\n[[jumpuri:続きはこちら > https://example.com/]][jump:2][pixivimage:123]\n終わり。",
+  seriesNavData: {
+    seriesId: 77,
+    title: "テスト連作",
+    order: 2,
+    prev: { id: "2001", title: "第一話　始まり", order: 1, available: true },
+    next: { id: "2003", title: "第三話　別れ", order: 3, available: true },
+  },
+};
+
+function pixivResponse(body: unknown): string {
+  return JSON.stringify({ error: false, message: "", body });
+}
+
+export const pixivEpisodeJson = pixivResponse(pixivNovel);
+
+export const pixivAdultEpisodeJson = pixivResponse({
+  ...pixivNovel,
+  xRestrict: 1,
+});
+
+export const pixivSingleUrl = "https://www.pixiv.net/novel/show.php?id=3003";
+
+export const pixivSingleJson = pixivResponse({
+  id: "3003",
+  title: "読み切り",
+  userName: "書き手",
+  xRestrict: 0,
+  content: "一行だけ。",
+  seriesNavData: null,
+});
+
+export const pixivTocJson = pixivResponse([
+  { id: "2001", title: "第一話　始まり", available: true },
+  { id: "2002", title: "第二話　再会", available: true },
+  { id: "2999", title: "非公開の話", available: false },
+  { id: "2003", title: "第三話　別れ", available: true },
+]);

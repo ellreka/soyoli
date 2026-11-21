@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, type ReactNode } from "react";
 
-import { isTocMarker, tocUrlOf } from "@/features/web/episode";
+import { isTocMarker, tocUrlOf, workIdOf } from "@/features/web/episode";
 import { usePlayback } from "@/features/player/Playback";
 import { useSubscription } from "@/lib/subscription";
 import { createChapterFetching } from "./chapterFetching";
@@ -39,7 +39,7 @@ export function ChapterLoaderProvider({ children }: { children: ReactNode }) {
         ),
       });
     }
-    const toc = tocUrlOf(chapter.url);
+    const toc = tocUrlOf(chapter.url, workIdOf(book));
     if (toc) {
       fetching.expandToc(toc);
     }
