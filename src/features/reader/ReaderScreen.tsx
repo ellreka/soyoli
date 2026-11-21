@@ -15,7 +15,7 @@ import { useLibrary } from "@/features/library/Library";
 import { usePlayback } from "@/features/player/Playback";
 import { onHardwareBack } from "@/lib/hardwareBack";
 import { useSubscription, type Subscription } from "@/lib/subscription";
-import { Reader } from "./Reader";
+import { Reader, ReaderLoading } from "./Reader";
 
 function closeReader() {
   if (router.canGoBack()) {
@@ -198,10 +198,16 @@ export default function ReaderScreen() {
       </Animated.View>
     );
   }
+  if (unread && !fileError) {
+    return (
+      <Animated.View style={closing.style}>
+        <ReaderLoading onClose={closing.close} />
+      </Animated.View>
+    );
+  }
   return (
     <Screen title="リーダー">
-      {unread && !fileError && <Text style={styles.text}>読み込み中…</Text>}
-      {unread && fileError && (
+      {unread && (
         <Text accessibilityRole="alert" style={styles.text}>
           {fileError}
         </Text>

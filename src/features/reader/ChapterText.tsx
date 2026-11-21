@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Pressable,
   FlatList,
   useWindowDimensions,
@@ -12,6 +11,7 @@ import {
   type ViewProps,
 } from "react-native";
 
+import { Loading } from "@/components/Loading";
 import type { Chapter } from "@/features/books/book";
 import { parseChapter, type Block } from "@/features/books/paragraphs";
 import { themes, type ReaderPalette } from "./Display";
@@ -222,10 +222,7 @@ export function ChapterText({
   return (
     <>
       {!placed && (
-        <ActivityIndicator
-          color={palette.text}
-          style={StyleSheet.absoluteFill}
-        />
+        <Loading color={palette.text} style={StyleSheet.absoluteFill} />
       )}
       <FlatList
         ref={attachList}

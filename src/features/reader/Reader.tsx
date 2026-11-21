@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useSubscription } from "@/lib/subscription";
 import { NativeRow } from "@/components/NativeRow";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Pressable } from "@/components/Pressable";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,6 +16,7 @@ import {
 } from "@/features/books/book";
 import { Icon } from "@/components/Icon";
 import { IconButton } from "@/components/IconButton";
+import { Loading } from "@/components/Loading";
 import { colors } from "@/constants/theme";
 import { useLibrary } from "@/features/library/Library";
 import { usePlayback } from "@/features/player/Playback";
@@ -96,25 +97,20 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
       <Text style={[styles.empty, note]}>表示できる本文がありません。</Text>
     );
   }
-  if (awaitsText(chapter)) {
+  if (awaitsText(chapter) && failed) {
     return (
       <View style={styles.status}>
-        {failed ? (
-          <Text style={note}>本文を取得できませんでした。</Text>
-        ) : (
-          <>
-            <ActivityIndicator color={palette.text} />
-            <Text style={note}>次の話を取得しています…</Text>
-          </>
-        )}
+        <Text style={note}>本文を取得できませんでした。</Text>
       </View>
     );
   }
-  if (!showText) {
+  if (awaitsText(chapter) || !showText) {
     return (
-      <View style={styles.status}>
-        <ActivityIndicator color={palette.text} />
-      </View>
+      <Loading
+        label={awaitsText(chapter) ? "次の話を取得しています…" : undefined}
+        color={palette.text}
+        labelColor={palette.dimmed}
+      />
     );
   }
   return (
@@ -139,6 +135,38 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
   );
 }
 
+interface CloseHandleProps {
+  onClose: () => void;
+  children?: ReactNode;
+}
+
+function CloseHandle({ onClose, children }: CloseHandleProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="ビューアーを閉じる"
+      onPress={onClose}
+      style={styles.close}
+    >
+      <View style={styles.closeIcon}>
+        <Icon name="chevron-down" size={24} />
+      </View>
+      {children}
+    </Pressable>
+  );
+}
+
+export function ReaderLoading({ onClose }: { onClose: () => void }) {
+  return (
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <CloseHandle onClose={onClose} />
+      </View>
+      <Loading label="読み込み中…" />
+    </SafeAreaView>
+  );
+}
+
 interface ReaderProps {
   book: Book;
   onClose: () => void;
@@ -158,12 +186,7 @@ export function Reader({ book, onClose }: ReaderProps) {
   const { isBookmarked, setBookmarked } = useLibrary();
 
   if (state.book !== book) {
-    return (
-      <SafeAreaView style={[styles.screen, styles.status]}>
-        <ActivityIndicator color={colors.text} />
-        <Text style={styles.statusText}>作品を準備しています。</Text>
-      </SafeAreaView>
-    );
+    return <ReaderLoading onClose={onClose} />;
   }
   const chapter = book.chapters[state.chapterIndex];
   const bookmarked = isBookmarked(book.id);
@@ -215,15 +238,7 @@ export function Reader({ book, onClose }: ReaderProps) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.inner}>
         <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="ビューアーを閉じる"
-            onPress={onClose}
-            style={styles.close}
-          >
-            <View style={styles.closeIcon}>
-              <Icon name="chevron-down" size={24} />
-            </View>
+          <CloseHandle onClose={onClose}>
             <View style={styles.titles}>
               <Text style={styles.bookTitle} numberOfLines={1}>
                 {book.title}
@@ -236,7 +251,7 @@ export function Reader({ book, onClose }: ReaderProps) {
                 {chapter?.title ?? "話がありません"}
               </Text>
             </View>
-          </Pressable>
+          </CloseHandle>
           {isWebNovel(book) && (
             <IconButton
               icon={bookmarked ? "bookmark-on" : "bookmark"}

@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+
+import { Loading } from "@/components/Loading";
 
 import { NativeButton } from "@/components/NativeButton";
 import { NativeSelect } from "@/components/NativeSelect";
@@ -124,12 +126,7 @@ export function VoiceField({ label, value, pitch, onChange }: VoiceFieldProps) {
         />
       </View>
       <Text style={styles.note}>試聴すると本文の再生は一時停止します。</Text>
-      {voiceLoading && (
-        <View style={styles.loading}>
-          <ActivityIndicator color={colors.text} />
-          <Text style={styles.note}>音声を読み込み中…</Text>
-        </View>
-      )}
+      {voiceLoading && <Loading inline label="音声を読み込み中…" />}
       {voiceError && (
         <Text accessibilityRole="alert" style={styles.note}>
           {voiceError}
@@ -173,6 +170,5 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   reset: { alignItems: "center" },
-  loading: { flexDirection: "row", alignItems: "center", gap: 8 },
   choice: { flexDirection: "row", alignItems: "center", gap: 12 },
 });

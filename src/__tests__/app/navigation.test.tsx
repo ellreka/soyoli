@@ -207,8 +207,12 @@ it("keeps playing the open book when a file finishes reading after its reader wa
   });
   await renderRouter(routes, { initialUrl: "/reader?id=kept-01" });
   expect(await screen.findByText("読み込み中…")).toBeOnTheScreen();
-  await fireEvent.press(screen.getByRole("button", { name: "閉じる" }));
-  expect(screen).toHavePathname("/");
+  await fireEvent.press(
+    screen.getByRole("button", { name: "ビューアーを閉じる" }),
+  );
+  await waitFor(() => {
+    expect(screen).toHavePathname("/");
+  });
   await act(async () => {
     reading.finish?.(kept);
   });
