@@ -402,3 +402,31 @@ it.each([
     listen.mockRestore();
   },
 );
+
+it("opens a file's book when the reader lost and regained focus while the file was being read", async () => {
+  const kept = {
+    ...book,
+    id: "kept-01",
+    title: "読み込む作品",
+    file: "kept.epub",
+  };
+  jest.mocked(savedFileBooks).mockReturnValue([{ ...kept, chapters: [] }]);
+  const readings: ((value: typeof kept) => void)[] = [];
+  jest.mocked(openSavedFile).mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        readings.push(resolve);
+      }),
+  );
+  await renderRouter(routes, { initialUrl: "/" });
+  await testRouter.push("/reader?id=kept-01");
+  expect(await screen.findByText("読み込み中…")).toBeOnTheScreen();
+  await testRouter.push("/settings");
+  await testRouter.back();
+  expect(readings).toHaveLength(1);
+  await act(async () => {
+    readings[0]({ ...kept });
+  });
+  expect(await screen.findByTestId("viewer-player")).toBeOnTheScreen();
+  expect(screen.queryByText("読み込み中…")).toBeNull();
+});

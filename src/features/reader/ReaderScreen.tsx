@@ -84,7 +84,7 @@ function failureMessage(cause: unknown): string {
 
 interface FocusEvents {
   isFocused: () => boolean;
-  addListener: (event: "focus" | "blur", listener: () => void) => () => void;
+  addListener: (event: "focus", listener: () => void) => () => void;
 }
 
 interface OpenTarget {
@@ -97,51 +97,56 @@ interface OpenTarget {
   onFailure: (failure: FileFailure) => void;
 }
 
+function show(target: OpenTarget, book: Book): void {
+  target.openBook(book);
+  target.markOpened(book.id);
+}
+
 function openOnFocus(target: OpenTarget): Subscription {
   const { bookId, navigation, bookById, loadFile, onFailure } = target;
-  const visit = { current: { live: false } };
-  function leave(): void {
-    visit.current.live = false;
-  }
-  function show(book: Book): void {
-    target.openBook(book);
-    target.markOpened(book.id);
+  const reader = { subscribed: false, reading: false };
+  function shown(): boolean {
+    return reader.subscribed && navigation.isFocused();
   }
   function open(): void {
-    leave();
-    const seen = { live: true };
-    visit.current = seen;
     const found = bookId ? bookById(bookId) : undefined;
     if (!found) {
       return;
     }
     if (!needsFile(found)) {
-      show(found);
+      show(target, found);
       return;
     }
-    loadFile(found.id).then(
-      (loaded) => {
-        if (seen.live) {
-          show(loaded);
-        }
-      },
-      (cause: unknown) => {
-        if (seen.live) {
-          onFailure({ id: found.id, message: failureMessage(cause) });
-        }
-      },
-    );
+    if (reader.reading) {
+      return;
+    }
+    reader.reading = true;
+    loadFile(found.id)
+      .then(
+        () => {
+          if (shown()) {
+            open();
+          }
+        },
+        (cause: unknown) => {
+          if (shown()) {
+            onFailure({ id: found.id, message: failureMessage(cause) });
+          }
+        },
+      )
+      .finally(() => {
+        reader.reading = false;
+      });
   }
   return () => {
+    reader.subscribed = true;
     if (navigation.isFocused()) {
       open();
     }
     const stopFocus = navigation.addListener("focus", open);
-    const stopBlur = navigation.addListener("blur", leave);
     return () => {
       stopFocus();
-      stopBlur();
-      leave();
+      reader.subscribed = false;
     };
   };
 }
