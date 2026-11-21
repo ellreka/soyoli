@@ -8,6 +8,7 @@ export interface ReaderPalette {
   text: string;
   dimmed: string;
   marker: string;
+  readOpacity: number;
 }
 
 export const fontSizes = { small: 14, medium: 17, large: 21, xlarge: 25 };
@@ -18,18 +19,21 @@ export const themes = {
     text: colors.text,
     dimmed: colors.secondary,
     marker: colors.marker,
+    readOpacity: 0.67,
   },
   sepia: {
     background: "#F4ECD8",
     text: "#3A2F21",
     dimmed: "#6F634C",
     marker: "#E8B80066",
+    readOpacity: 0.73,
   },
   white: {
     background: "#F7F7F5",
     text: "#1F1F22",
     dimmed: "#6B6B70",
     marker: "#FFD60080",
+    readOpacity: 0.64,
   },
 } satisfies Record<string, ReaderPalette>;
 

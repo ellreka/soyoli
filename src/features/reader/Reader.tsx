@@ -20,6 +20,7 @@ import { Loading } from "@/components/Loading";
 import { colors } from "@/constants/theme";
 import { useLibrary } from "@/features/library/Library";
 import { usePlayback } from "@/features/player/Playback";
+import { createStore, useStore } from "@/lib/store";
 import { Player } from "@/features/player/Player";
 import { ReaderSheet, type Sheet } from "./ReaderSheet";
 import { browseParams } from "@/features/web/browser";
@@ -29,6 +30,7 @@ import { fontSizes, lineHeights, themes, useDisplay } from "./Display";
 import { dictionaryParams } from "@/features/dictionary/DictionaryEditScreen";
 import { useChapterLoader } from "@/features/loading/ChapterLoader";
 import { ParagraphMenu } from "./ParagraphMenu";
+import { readingFrom, type Reading } from "./reading";
 
 interface MenuItem {
   label: string;
@@ -69,9 +71,7 @@ function ReaderMenu({ items, onClose }: ReaderMenuProps) {
 interface ChapterBodyProps {
   chapter: Chapter | undefined;
   failed: boolean;
-  paragraphIndex: number;
-  autoScroll: boolean;
-  onManualScroll: () => void;
+  reading: Reading;
   onSeek: (paragraphIndex: number, play: boolean) => void;
   onMenu: (paragraphIndex: number) => void;
 }
@@ -167,6 +167,21 @@ export function ReaderLoading({ onClose }: { onClose: () => void }) {
   );
 }
 
+function useReading() {
+  const { source } = usePlayback();
+  const [follows, setFollows, following] = useStore(() => createStore(true));
+  const [reading] = useState(() =>
+    readingFrom(
+      {
+        get: () => source.get().state.paragraphIndex,
+        subscribe: source.subscribe,
+      },
+      following,
+    ),
+  );
+  return { reading, follows, setFollows };
+}
+
 interface ReaderProps {
   book: Book;
   onClose: () => void;
@@ -181,7 +196,7 @@ export function Reader({ book, onClose }: ReaderProps) {
     chapterId: string;
     index: number;
   } | null>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const { reading, follows, setFollows } = useReading();
   const { settings } = useDisplay();
   const { isBookmarked, setBookmarked } = useLibrary();
 
@@ -295,11 +310,7 @@ export function Reader({ book, onClose }: ReaderProps) {
             key={chapter?.id}
             chapter={chapter}
             failed={failedChapter === chapter?.url}
-            paragraphIndex={state.paragraphIndex}
-            autoScroll={autoScroll}
-            onManualScroll={() => {
-              setAutoScroll(false);
-            }}
+            reading={reading}
             onSeek={seekParagraph}
             onMenu={(index) => {
               if (chapter) {
@@ -308,12 +319,12 @@ export function Reader({ book, onClose }: ReaderProps) {
               }
             }}
           />
-          {!autoScroll && (
+          {!follows && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="読み上げ位置に戻る"
               onPress={() => {
-                setAutoScroll(true);
+                setFollows(() => true);
               }}
               style={styles.follow}
             >
@@ -325,7 +336,7 @@ export function Reader({ book, onClose }: ReaderProps) {
         <Player
           onOpen={setSheet}
           onSeek={() => {
-            setAutoScroll(true);
+            setFollows(() => true);
           }}
         />
         {menuOpen && (

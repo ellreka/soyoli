@@ -10,6 +10,10 @@ import { FlatList, Platform } from "react-native";
 import { colors } from "@/constants/theme";
 import type { Chapter } from "@/features/books/book";
 import { ChapterText } from "@/features/reader/ChapterText";
+import { themes } from "@/features/reader/Display";
+import { readingFrom } from "@/features/reader/reading";
+import * as ruby from "@/features/reader/ruby";
+import { createStore } from "@/lib/store";
 
 const chapter: Chapter = {
   id: "chapter",
@@ -62,6 +66,21 @@ const rubyChapter: Chapter = {
   ],
 };
 
+function readingAt(paragraphIndex: number, follows = true) {
+  const position = createStore(paragraphIndex);
+  const following = createStore(follows);
+  return {
+    reading: readingFrom(position, following),
+    following,
+    async move(to: number, follow = following.get()) {
+      await act(async () => {
+        position.update(() => to);
+        following.update(() => follow);
+      });
+    },
+  };
+}
+
 afterEach(() => {
   jest.restoreAllMocks();
   jest.useRealTimers();
@@ -71,9 +90,7 @@ it("sets ruby readings over their base characters", async () => {
   await render(
     <ChapterText
       chapter={rubyChapter}
-      paragraphIndex={0}
-      autoScroll
-      onManualScroll={jest.fn()}
+      reading={readingAt(0).reading}
       onSelect={jest.fn()}
     />,
   );
@@ -100,9 +117,7 @@ it("reads paragraph by paragraph: marks the current one in full and selects by p
   await render(
     <ChapterText
       chapter={chapter}
-      paragraphIndex={1}
-      autoScroll
-      onManualScroll={jest.fn()}
+      reading={readingAt(1).reading}
       onSelect={onSelect}
     />,
   );
@@ -119,8 +134,9 @@ it("reads paragraph by paragraph: marks the current one in full and selects by p
     "二段落目。二段落目の続き。",
   );
   expect(first).not.toHaveStyle({ backgroundColor: colors.marker });
-  expect(within(first).getByText("一段落目。一段落目の続き。")).toHaveStyle({
-    color: colors.secondary,
+  expect(first.parent).toHaveStyle({ opacity: themes.black.readOpacity });
+  expect(second.parent).not.toHaveStyle({
+    opacity: themes.black.readOpacity,
   });
   await fireEvent(first, "press", { nativeEvent: { locationY: 700 } });
   expect(onSelect).toHaveBeenLastCalledWith(0);
@@ -138,9 +154,7 @@ it("moves on a tap and plays on a second tap of the same paragraph", async () =>
   await render(
     <ChapterText
       chapter={chapter}
-      paragraphIndex={0}
-      autoScroll
-      onManualScroll={jest.fn()}
+      reading={readingAt(0).reading}
       onSelect={onSelect}
       onPlay={onPlay}
     />,
@@ -186,17 +200,10 @@ it("slides the text to the reading position in a moment, once its rows are measu
   const scrollToOffset = jest
     .spyOn(FlatList.prototype, "scrollToOffset")
     .mockImplementation(() => {});
-  const onManualScroll = jest.fn();
-  const view = (paragraphIndex: number) => (
-    <ChapterText
-      chapter={chapter}
-      paragraphIndex={paragraphIndex}
-      autoScroll
-      onManualScroll={onManualScroll}
-      onSelect={jest.fn()}
-    />
+  const { reading, move } = readingAt(0);
+  await render(
+    <ChapterText chapter={chapter} reading={reading} onSelect={jest.fn()} />,
   );
-  const { rerender } = await render(view(0));
   const list = screen.getByTestId("chapter-content");
   await fireEvent(list, "layout", {
     nativeEvent: { layout: { x: 0, y: 0, width: 390, height: 500 } },
@@ -209,7 +216,7 @@ it("slides the text to the reading position in a moment, once its rows are measu
     nativeEvent: { layout: { x: 0, y: 900, width: 390, height: 60 } },
   });
   const placed = scrollToIndex.mock.calls.length;
-  await rerender(view(1));
+  await move(1);
   expect(scrollToIndex).toHaveBeenCalledTimes(placed);
   await act(async () => {
     jest.advanceTimersByTime(48);
@@ -224,7 +231,7 @@ it("slides the text to the reading position in a moment, once its rows are measu
     offset: 750,
     animated: false,
   });
-  await rerender(view(0));
+  await move(0);
   await fireEvent(list, "scrollBeginDrag", scrollEvent);
   const frames = scrollToOffset.mock.calls.length;
   await act(async () => {
@@ -241,19 +248,11 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
   const scrollToOffset = jest
     .spyOn(FlatList.prototype, "scrollToOffset")
     .mockImplementation(() => {});
-  const onManualScroll = jest.fn();
-  const onSelect = jest.fn();
-  const view = (paragraphIndex: number, autoScroll = true) => (
-    <ChapterText
-      chapter={chapter}
-      paragraphIndex={paragraphIndex}
-      autoScroll={autoScroll}
-      onManualScroll={onManualScroll}
-      onSelect={onSelect}
-    />
+  const { reading, following, move } = readingAt(1);
+  const { unmount } = await render(
+    <ChapterText chapter={chapter} reading={reading} onSelect={jest.fn()} />,
   );
-  const { rerender, unmount } = await render(view(1));
-  await rerender(view(0));
+  await move(0);
   expect(scrollToIndex).toHaveBeenLastCalledWith({
     index: 0,
     viewPosition: 0,
@@ -264,7 +263,7 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
     screen.getByTestId("chapter-content"),
     scrollEvent.nativeEvent,
   );
-  expect(onManualScroll).not.toHaveBeenCalled();
+  expect(following.get()).toBe(true);
   await fireEvent(
     screen.getByTestId("chapter-content"),
     "scrollToIndexFailed",
@@ -276,14 +275,13 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
     "scrollBeginDrag",
     scrollEvent,
   );
-  expect(onManualScroll).toHaveBeenCalledTimes(1);
-  await rerender(view(1, false));
+  expect(following.get()).toBe(false);
+  await move(1);
   const calls = scrollToIndex.mock.calls.length;
   const offsets = scrollToOffset.mock.calls.length;
   await act(async () => {
     jest.advanceTimersByTime(100);
   });
-  await rerender(view(1, false));
   await fireEvent(
     screen.getByTestId("chapter-content"),
     "scrollToIndexFailed",
@@ -291,7 +289,7 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
   );
   expect(scrollToIndex).toHaveBeenCalledTimes(calls);
   expect(scrollToOffset).toHaveBeenCalledTimes(offsets);
-  await rerender(view(1));
+  await move(1, true);
   expect(scrollToIndex).toHaveBeenLastCalledWith({
     index: 2,
     viewPosition: 0,
@@ -299,8 +297,8 @@ it("stops following and pending scroll retries on manual scrolling, resumes on e
     animated: false,
   });
   const beforeToggle = scrollToIndex.mock.calls.length;
-  await rerender(view(1, false));
-  await rerender(view(1));
+  await move(1, false);
+  await move(1, true);
   expect(scrollToIndex).toHaveBeenCalledTimes(beforeToggle + 1);
   expect(scrollToIndex).toHaveBeenLastCalledWith({
     index: 2,
@@ -325,19 +323,65 @@ it.each(["wheel", "touchMove", "keyDown"])(
   "suspends following on web %s",
   async (event) => {
     jest.replaceProperty(Platform, "OS", "web");
-    const onManualScroll = jest.fn();
+    const { reading, following } = readingAt(0);
     await render(
-      <ChapterText
-        chapter={chapter}
-        paragraphIndex={0}
-        autoScroll
-        onManualScroll={onManualScroll}
-        onSelect={jest.fn()}
-      />,
+      <ChapterText chapter={chapter} reading={reading} onSelect={jest.fn()} />,
     );
     await fireEvent(screen.getByTestId("chapter-content"), event, {
       nativeEvent: { key: "ArrowDown", touches: [] },
     });
-    expect(onManualScroll).toHaveBeenCalled();
+    expect(following.get()).toBe(false);
   },
 );
+
+it("draws only the row that had the position and the row that gets it when the position moves, however far, and never the list", async () => {
+  const rowCount = 40;
+  const long: Chapter = {
+    id: "long",
+    title: "長い話",
+    content: Array.from({ length: rowCount }, (_, index) => ({
+      type: "element" as const,
+      tag: "p" as const,
+      children: [{ type: "text" as const, text: `段落${index}。` }],
+    })),
+  };
+  const drawn = jest.spyOn(ruby, "renderRuby");
+  const { reading, move } = readingAt(0, false);
+  const text = (onSelect: () => void) => (
+    <ChapterText chapter={long} reading={reading} onSelect={onSelect} />
+  );
+  const view = await render(text(jest.fn()));
+  expect(drawn).toHaveBeenCalledTimes(rowCount);
+  const listDrawn = jest.spyOn(FlatList.prototype, "render");
+
+  drawn.mockClear();
+  await move(1);
+  expect(drawn).toHaveBeenCalledTimes(2);
+
+  drawn.mockClear();
+  await move(30);
+  expect(drawn).toHaveBeenCalledTimes(2);
+  const row = (index: number) =>
+    screen.getByRole("button", { name: `段落${index}。` });
+  const faded = { opacity: themes.black.readOpacity };
+  expect(row(0).parent).toHaveStyle(faded);
+  expect(row(29).parent).toHaveStyle(faded);
+  expect(row(30).parent).not.toHaveStyle(faded);
+  expect(row(30)).toHaveStyle({ backgroundColor: colors.marker });
+  expect(row(31).parent).not.toHaveStyle(faded);
+
+  drawn.mockClear();
+  await move(5);
+  expect(drawn).toHaveBeenCalledTimes(2);
+  expect(row(4).parent).toHaveStyle(faded);
+  expect(row(5).parent).not.toHaveStyle(faded);
+  expect(row(29).parent).not.toHaveStyle(faded);
+
+  drawn.mockClear();
+  const onSelect = jest.fn();
+  await view.rerender(text(onSelect));
+  expect(drawn).not.toHaveBeenCalled();
+  expect(listDrawn).not.toHaveBeenCalled();
+  await fireEvent.press(row(30));
+  expect(onSelect).toHaveBeenCalledWith(30);
+});
