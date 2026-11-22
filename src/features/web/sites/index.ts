@@ -2,9 +2,10 @@ import { sourceLabels, type WebSource } from "@/features/books/book";
 import { hameln } from "./hameln";
 import { kakuyomu } from "./kakuyomu";
 import { narou } from "./narou";
+import { pixiv } from "./pixiv";
 import type { SiteListing, WebSite } from "./site";
 
-export const webSites: readonly WebSite[] = [narou, kakuyomu, hameln];
+export const webSites: readonly WebSite[] = [narou, kakuyomu, hameln, pixiv];
 
 export function siteOf(url: string): WebSite | undefined {
   return webSites.find((site) => site.mayBeEpisode(url));

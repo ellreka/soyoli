@@ -6,12 +6,14 @@ import type { Subscription } from "@/lib/subscription";
 import {
   chainNextEpisode,
   episodeContent,
+  episodeDataUrl,
   isTocMarker,
   isTocPageUrl,
   mergeToc,
   parseEpisode,
   parseToc,
   tocUrlOf,
+  workIdOf,
 } from "@/features/web/episode";
 import type { OpenBook } from "./useOpenBook";
 
@@ -61,7 +63,7 @@ function tocUrlFor(state: PlaybackState): string | null {
     chapter?.url &&
     !isTocMarker(chapter) &&
     lacksToc(book)
-    ? tocUrlOf(chapter.url)
+    ? tocUrlOf(chapter.url, workIdOf(book))
     : null;
 }
 
@@ -184,7 +186,7 @@ export function createChapterFetching(
     pending.add(url);
     const request = new AbortController();
     episode.request = request;
-    fetchHtml(url, request.signal)
+    fetchHtml(episodeDataUrl(url), request.signal)
       .then((html) => {
         if (!request.signal.aborted) {
           applyEpisode(url, html);

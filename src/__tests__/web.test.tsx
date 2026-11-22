@@ -8,6 +8,11 @@ import {
   narouEpisodeHtml,
   narouEpisodeUrl,
   narouTocHtml,
+  pixivEpisodeDataUrl,
+  pixivEpisodeJson,
+  pixivEpisodeUrl,
+  pixivTocJson,
+  pixivTocUrl,
 } from "@/__fixtures__/webPages";
 import HomeLayout from "@/app/(tabs)/home/_layout";
 import BrowseScreen from "@/app/(tabs)/home/browse";
@@ -505,5 +510,71 @@ describe("episode detection", () => {
       loading: true,
     });
     expect(screen.queryByRole("button", openButton)).toBeNull();
+  });
+});
+
+describe("episode detection on a site that draws the text itself (pixiv)", () => {
+  function injected(): string[] {
+    return jest
+      .mocked(commands.injectJavaScript)
+      .mock.calls.map((call) => String(call[0]));
+  }
+
+  async function post(data: unknown) {
+    await act(async () => {
+      webView().props.onMessage({
+        nativeEvent: { url: pixivEpisodeUrl, data: JSON.stringify(data) },
+      });
+    });
+  }
+
+  const openButton = { name: "第二話　再会をリーダーで開く" };
+
+  it("asks for the episode's data when the page moves to it without loading", async () => {
+    await openSite();
+    await navigate({ url: pixivEpisodeUrl, loading: true });
+    expect(commands.injectJavaScript).not.toHaveBeenCalled();
+    await navigate({ url: pixivEpisodeUrl, loading: false });
+    await navigate({ url: pixivEpisodeUrl, loading: false });
+    await act(async () => {
+      webView().props.onLoad({ nativeEvent: { url: pixivEpisodeUrl } });
+    });
+
+    expect(injected()).toHaveLength(1);
+    expect(injected()[0]).toContain(`fetch("${pixivEpisodeDataUrl}")`);
+    expect(injected()[0]).not.toContain("outerHTML");
+  });
+
+  it("opens the series in the reader once the data and its table of contents arrive", async () => {
+    await openSite();
+    await navigate({ url: pixivEpisodeUrl, loading: false });
+    await post({
+      kind: "episode",
+      url: pixivEpisodeUrl,
+      text: pixivEpisodeJson,
+    });
+
+    expect(screen.getByText("テスト連作 · 書き手")).toBeOnTheScreen();
+    expect(injected().at(-1)).toContain(`fetch("${pixivTocUrl}")`);
+    await post({ kind: "toc", html: pixivTocJson });
+
+    await fireEvent.press(screen.getByRole("button", openButton));
+    expect(screen).toHaveSearchParams({ id: "pixiv-series-77" });
+    expect(
+      screen.getByText(
+        "テスト連作|書き手|第一話　始まり,第二話　再会,第三話　別れ",
+      ),
+    ).toBeOnTheScreen();
+  });
+
+  it("drops data that arrives for a novel the browser has already left", async () => {
+    await openSite();
+    await navigate({ url: pixivEpisodeUrl, loading: false });
+    await post({
+      kind: "episode",
+      url: "https://www.pixiv.net/novel/show.php?id=2001",
+      text: pixivEpisodeJson,
+    });
+    expect(screen.queryByText(/リーダーで開く/)).toBeNull();
   });
 });

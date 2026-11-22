@@ -52,9 +52,10 @@ export interface WebSite {
   id: WebSource;
   listing?: SiteListing;
   mayBeEpisode: (url: string) => boolean;
+  episodeDataUrl?: (episodeUrl: string) => string | null;
   parseEpisode: (html: string, url: string) => WebEpisode | null;
   episodeIdOf: (url: string) => string | undefined;
-  tocUrlOf: (episodeUrl: string) => string | null;
+  tocUrlOf: (episodeUrl: string, workId?: string) => string | null;
   parseToc: (html: string, url: string) => WorkToc | null;
   workUrl: (workId: string) => string | null;
   workPageOf?: (episodeUrl: string) => string | null;

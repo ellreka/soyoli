@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { useSubscription } from "@/lib/subscription";
 import { NativeRow } from "@/components/NativeRow";
 import { router } from "expo-router";
 import * as Clipboard from "expo-clipboard";
-import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Pressable } from "@/components/Pressable";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -16,9 +16,11 @@ import {
 } from "@/features/books/book";
 import { Icon } from "@/components/Icon";
 import { IconButton } from "@/components/IconButton";
+import { Loading } from "@/components/Loading";
 import { colors } from "@/constants/theme";
 import { useLibrary } from "@/features/library/Library";
 import { usePlayback } from "@/features/player/Playback";
+import { createStore, useStore } from "@/lib/store";
 import { Player } from "@/features/player/Player";
 import { ReaderSheet, type Sheet } from "./ReaderSheet";
 import { browseParams } from "@/features/web/browser";
@@ -28,6 +30,7 @@ import { fontSizes, lineHeights, themes, useDisplay } from "./Display";
 import { dictionaryParams } from "@/features/dictionary/DictionaryEditScreen";
 import { useChapterLoader } from "@/features/loading/ChapterLoader";
 import { ParagraphMenu } from "./ParagraphMenu";
+import { readingFrom, type Reading } from "./reading";
 
 interface MenuItem {
   label: string;
@@ -68,9 +71,7 @@ function ReaderMenu({ items, onClose }: ReaderMenuProps) {
 interface ChapterBodyProps {
   chapter: Chapter | undefined;
   failed: boolean;
-  paragraphIndex: number;
-  autoScroll: boolean;
-  onManualScroll: () => void;
+  reading: Reading;
   onSeek: (paragraphIndex: number, play: boolean) => void;
   onMenu: (paragraphIndex: number) => void;
 }
@@ -96,25 +97,20 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
       <Text style={[styles.empty, note]}>表示できる本文がありません。</Text>
     );
   }
-  if (awaitsText(chapter)) {
+  if (awaitsText(chapter) && failed) {
     return (
       <View style={styles.status}>
-        {failed ? (
-          <Text style={note}>本文を取得できませんでした。</Text>
-        ) : (
-          <>
-            <ActivityIndicator color={palette.text} />
-            <Text style={note}>次の話を取得しています…</Text>
-          </>
-        )}
+        <Text style={note}>本文を取得できませんでした。</Text>
       </View>
     );
   }
-  if (!showText) {
+  if (awaitsText(chapter) || !showText) {
     return (
-      <View style={styles.status}>
-        <ActivityIndicator color={palette.text} />
-      </View>
+      <Loading
+        label={awaitsText(chapter) ? "次の話を取得しています…" : undefined}
+        color={palette.text}
+        labelColor={palette.dimmed}
+      />
     );
   }
   return (
@@ -139,6 +135,53 @@ function ChapterBody({ chapter, failed, onSeek, ...text }: ChapterBodyProps) {
   );
 }
 
+interface CloseHandleProps {
+  onClose: () => void;
+  children?: ReactNode;
+}
+
+function CloseHandle({ onClose, children }: CloseHandleProps) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="ビューアーを閉じる"
+      onPress={onClose}
+      style={styles.close}
+    >
+      <View style={styles.closeIcon}>
+        <Icon name="chevron-down" size={24} />
+      </View>
+      {children}
+    </Pressable>
+  );
+}
+
+export function ReaderLoading({ onClose }: { onClose: () => void }) {
+  return (
+    <SafeAreaView style={styles.screen}>
+      <View style={styles.header}>
+        <CloseHandle onClose={onClose} />
+      </View>
+      <Loading label="読み込み中…" />
+    </SafeAreaView>
+  );
+}
+
+function useReading() {
+  const { source } = usePlayback();
+  const [follows, setFollows, following] = useStore(() => createStore(true));
+  const [reading] = useState(() =>
+    readingFrom(
+      {
+        get: () => source.get().state.paragraphIndex,
+        subscribe: source.subscribe,
+      },
+      following,
+    ),
+  );
+  return { reading, follows, setFollows };
+}
+
 interface ReaderProps {
   book: Book;
   onClose: () => void;
@@ -153,17 +196,12 @@ export function Reader({ book, onClose }: ReaderProps) {
     chapterId: string;
     index: number;
   } | null>(null);
-  const [autoScroll, setAutoScroll] = useState(true);
+  const { reading, follows, setFollows } = useReading();
   const { settings } = useDisplay();
   const { isBookmarked, setBookmarked } = useLibrary();
 
   if (state.book !== book) {
-    return (
-      <SafeAreaView style={[styles.screen, styles.status]}>
-        <ActivityIndicator color={colors.text} />
-        <Text style={styles.statusText}>作品を準備しています。</Text>
-      </SafeAreaView>
-    );
+    return <ReaderLoading onClose={onClose} />;
   }
   const chapter = book.chapters[state.chapterIndex];
   const bookmarked = isBookmarked(book.id);
@@ -215,15 +253,7 @@ export function Reader({ book, onClose }: ReaderProps) {
     <SafeAreaView style={styles.screen}>
       <View style={styles.inner}>
         <View style={styles.header}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="ビューアーを閉じる"
-            onPress={onClose}
-            style={styles.close}
-          >
-            <View style={styles.closeIcon}>
-              <Icon name="chevron-down" size={24} />
-            </View>
+          <CloseHandle onClose={onClose}>
             <View style={styles.titles}>
               <Text style={styles.bookTitle} numberOfLines={1}>
                 {book.title}
@@ -236,7 +266,7 @@ export function Reader({ book, onClose }: ReaderProps) {
                 {chapter?.title ?? "話がありません"}
               </Text>
             </View>
-          </Pressable>
+          </CloseHandle>
           {isWebNovel(book) && (
             <IconButton
               icon={bookmarked ? "bookmark-on" : "bookmark"}
@@ -280,11 +310,7 @@ export function Reader({ book, onClose }: ReaderProps) {
             key={chapter?.id}
             chapter={chapter}
             failed={failedChapter === chapter?.url}
-            paragraphIndex={state.paragraphIndex}
-            autoScroll={autoScroll}
-            onManualScroll={() => {
-              setAutoScroll(false);
-            }}
+            reading={reading}
             onSeek={seekParagraph}
             onMenu={(index) => {
               if (chapter) {
@@ -293,12 +319,12 @@ export function Reader({ book, onClose }: ReaderProps) {
               }
             }}
           />
-          {!autoScroll && (
+          {!follows && (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="読み上げ位置に戻る"
               onPress={() => {
-                setAutoScroll(true);
+                setFollows(() => true);
               }}
               style={styles.follow}
             >
@@ -310,7 +336,7 @@ export function Reader({ book, onClose }: ReaderProps) {
         <Player
           onOpen={setSheet}
           onSeek={() => {
-            setAutoScroll(true);
+            setFollows(() => true);
           }}
         />
         {menuOpen && (

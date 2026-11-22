@@ -17,8 +17,20 @@ export function parseEpisode(html: string, url: string): WebEpisode | null {
   return siteOf(url)?.parseEpisode(html, url) ?? null;
 }
 
-export function tocUrlOf(episodeUrl: string): string | null {
-  return siteOf(episodeUrl)?.tocUrlOf(episodeUrl) ?? null;
+export function episodeDataUrl(episodeUrl: string): string {
+  return siteOf(episodeUrl)?.episodeDataUrl?.(episodeUrl) ?? episodeUrl;
+}
+
+export function readsEpisodeFromPage(episodeUrl: string): boolean {
+  return episodeDataUrl(episodeUrl) === episodeUrl;
+}
+
+export function workIdOf(book: Book): string {
+  return book.id.slice(book.source.length + 1);
+}
+
+export function tocUrlOf(episodeUrl: string, workId?: string): string | null {
+  return siteOf(episodeUrl)?.tocUrlOf(episodeUrl, workId) ?? null;
 }
 
 export function parseToc(html: string, url: string): WorkToc {
@@ -183,7 +195,11 @@ export function episodeToBook(
       },
     ],
   };
-  const merged = mergeToc(book, toc, tocUrlOf(episode.url) ?? undefined);
+  const merged = mergeToc(
+    book,
+    toc,
+    tocUrlOf(episode.url, episode.workId) ?? undefined,
+  );
   return {
     ...merged,
     chapters: chainNextEpisode(merged.chapters, episode.nextUrl),
