@@ -25,11 +25,11 @@ export interface LatestReading {
   timer: () => SleepTimer;
   autoNext: () => boolean;
   pageSound: () => boolean;
+  settings: () => PlaybackSettings;
 }
 
 interface ReadAloud {
   state: PlaybackState;
-  settings: PlaybackSettings;
   preview: Preview | null;
   generation: Generation;
   latest: LatestReading;
@@ -44,7 +44,6 @@ function providerMayBeGone(): void {}
 
 function readAloud({
   state,
-  settings,
   preview,
   generation,
   latest,
@@ -54,7 +53,6 @@ function readAloud({
   setError,
   setPreviewError,
 }: ReadAloud): Subscription {
-  const { rate, pitch, voice, brackets } = settings;
   function start(): (() => void) | undefined {
     if (!preview && (!state.book || !state.playing)) {
       return;
@@ -82,7 +80,7 @@ function readAloud({
     }
     function advance() {
       const next = moveToSpoken(
-        { rules: latest.rules(), brackets },
+        { rules: latest.rules(), brackets: latest.settings().brackets },
         state.book,
         state.chapters,
         state,
@@ -117,6 +115,7 @@ function readAloud({
       if (!live()) {
         return;
       }
+      const { rate, pitch, voice, brackets } = latest.settings();
       const paragraph =
         state.chapters[state.chapterIndex]?.[state.paragraphIndex];
       const parts: Segment[] = preview
@@ -191,9 +190,8 @@ function readAloud({
   return () => start() ?? unsubscribeNothing;
 }
 
-function readingInputs({ state, settings, preview }: ReadAloud): unknown[] {
-  const { rate, pitch, voice, brackets } = settings;
-  return [state, rate, pitch, voice, brackets, preview];
+function readingInputs({ state, preview }: ReadAloud): unknown[] {
+  return [state, preview];
 }
 
 function sameInputs(a: unknown[], b: unknown[]): boolean {

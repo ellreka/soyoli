@@ -446,6 +446,44 @@ it("uses actual Japanese voice IDs, adjusts rate, and rejects invalid seeks", as
   });
 });
 
+it("applies voice settings changed while reading from the next paragraph, without rereading the current one", async () => {
+  const { result } = await setup();
+  jest.mocked(Speech.getAvailableVoicesAsync).mockResolvedValue([
+    {
+      identifier: "ja-voice",
+      language: "ja-JP",
+      name: "日本語音声",
+      quality: Speech.VoiceQuality.Default,
+    },
+  ]);
+  await act(async () => {
+    result.current.loadVoices();
+  });
+  await act(async () => {
+    result.current.toggle();
+  });
+  expect(Speech.speak).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    result.current.setRate(1.5);
+    result.current.setPitch(1.4);
+    result.current.setVoice("ja-voice");
+  });
+  expect(Speech.speak).toHaveBeenCalledTimes(1);
+  expect(Speech.stop).toHaveBeenCalledTimes(1);
+  expect(result.current.state).toMatchObject({
+    paragraphIndex: 0,
+    playing: true,
+  });
+  await act(async () => {
+    done();
+  });
+  expect(Speech.speak).toHaveBeenCalledTimes(2);
+  expect(Speech.speak).toHaveBeenLastCalledWith(
+    "二文目。",
+    expect.objectContaining({ rate: 1.5, pitch: 1.4, voice: "ja-voice" }),
+  );
+});
+
 it("opens image chapters without skipping them and pauses when browsing into one", async () => {
   const { result } = await renderHook(() => usePlayback(), {
     wrapper: PlaybackProvider,

@@ -62,7 +62,7 @@ src/
 - **段落が単位。** 読み上げられ、ハイライトされ、位置として保存されるのは `Paragraph`（`books/paragraphs.ts`）で、「文」ではない。`playback.json` はそのインデックスを今も `sentenceIndex` と呼んでいて、`player/storage.ts` が読み替える。ディスク上のキーの名前は変えないこと。
 - **保存したファイルの形は永遠。** ディスクから読み戻すものはすべて、読む場所で検証する（`toDictionary`、`fromSavedWorks`、`initialSettings`、`savedPositions`）。古いファイルも動き続けなければならない。
 - **開いている本は 2 か所で持たれる。** ライブラリ（画面が見せるもの）とプレーヤー（読み上げるもの）。作品を開くには `addBook`、続いて `playback.openBook`。開いている本を変える（章の本文が届いた、目次の続きが届いた）には `useOpenBook().replace` を使い、それ以外は使わない。
-- **`playback.state` は何をどこで読むか、`playback.settings` はどう読むか。** 速度・高さ・声・カッコの声を変えると、読み上げ中の段落をやり直す。`keepAwake`・`pageSound`・`autoNext`・`authorNotes` はやり直してはならない。
+- **`playback.state` は何をどこで読むか、`playback.settings` はどう読むか。** 設定を変えても、読み上げ中の段落はやり直さない。速度・高さ・声・カッコの声は、段落を読み始めるときに最新の値を読む（`LatestReading.settings`）ので、次の段落から効く。
 - **バックアップのファイルも、保存したファイルと同じく形は永遠。** 入るのは辞書・音声設定・Web 小説のメタ情報と読みかけの位置だけ（`backup/backup.ts`）。読み戻すときは、端末のファイルと同じ検証を通す。
 - **依存を変えたら、ライセンスの一覧を作り直す。** `assets/licenses.json` は `scripts/licenses.mjs` が書く生成物で、手で編集しない。載るのはアプリに入るものだけで、スクリプトは iOS と Android のバンドルを書き出して調べる（1 分ほどかかる）。ネイティブ側だけが入れるライブラリは `scripts/native-licenses.json` に持つ（これも生成物）: Expo や React Native を上げた、ネイティブのライブラリを足したときは、`npx expo prebuild` のあと `pnpm licenses:native`、続けて `pnpm licenses:update` を実行する。ライブラリではない素材（音など）は `scripts/licenses.mjs` の `extras` に足す。作り直し忘れはテストが落ちて知らせる。
 - **依存のバージョンは固定する。** `package.json` には範囲（`^`・`~`）ではなく、入れるバージョンそのものを書く（`pnpm-workspace.yaml` の `saveExact`）。`npx expo install` が `~` 付きで書いたら、その記号を外す。CI は `pnpm install --frozen-lockfile` で、lockfile のとおりにだけ入れる。GitHub Actions の action も同じで、ワークフローには完全なタグ（`@v7.0.1`）を書き、コミットは `.github/workflows/actions.lock` が固定する。これは生成物で、手で編集しない: `uses:` を足した・変えた後は `gh actions-lock` を実行する（`gh extension install github/gh-actions-lock`）。
