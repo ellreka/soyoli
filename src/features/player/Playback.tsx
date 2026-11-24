@@ -72,7 +72,6 @@ function usePlaybackState(onChapterRead: ChapterRead, findBook: FindBook) {
   useKeepAwake(settings.keepAwake && state.playing);
   useReadAloud({
     state,
-    settings,
     preview,
     generation,
     latest: {
@@ -80,6 +79,7 @@ function usePlaybackState(onChapterRead: ChapterRead, findBook: FindBook) {
       timer: timerNow,
       autoNext: () => store.get().settings.autoNext,
       pageSound: () => store.get().settings.pageSound,
+      settings: () => store.get().settings,
     },
     change,
     setSleepTimer,
@@ -220,7 +220,7 @@ function usePlaybackState(onChapterRead: ChapterRead, findBook: FindBook) {
     }));
   }
   function setVoiceSettings(update: Partial<PlaybackSettings>) {
-    interrupt();
+    stopPreview();
     setSettings((current) => ({ ...current, ...update }));
   }
   function setRate(rate: number) {
@@ -243,7 +243,7 @@ function usePlaybackState(onChapterRead: ChapterRead, findBook: FindBook) {
       isPitch(value.pitch) &&
       (!value.voice || voices.some((item) => item.identifier === value.voice))
     ) {
-      interrupt();
+      stopPreview();
       setSettings((current) => ({
         ...current,
         brackets: { ...current.brackets, [kind]: value },

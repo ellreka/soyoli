@@ -80,6 +80,7 @@ it("changes playback settings inside the viewer and returns there from the mini 
   );
   expect(screen.getByText("6 / 13 字")).toBeOnTheScreen();
   expect(screen.getByText("1 / 2 話")).toBeOnTheScreen();
+  const whileReading = jest.mocked(Speech.speak).mock.calls.length;
   await fireEvent.press(screen.getByRole("button", { name: "音声設定" }));
   expect(
     screen
@@ -93,36 +94,26 @@ it("changes playback settings inside the viewer and returns there from the mini 
   await fireEvent.press(screen.getByRole("radio", { name: "1.5×" }));
   expect(screen.getByRole("radio", { name: "1.5×" })).toBeChecked();
   expect(screen.getByText("音声設定")).toBeOnTheScreen();
-  expect(Speech.speak).toHaveBeenLastCalledWith(
-    "もう一つの文。",
-    expect.objectContaining({ rate: 1.5 }),
-  );
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   await fireEvent.press(
     await screen.findByRole("radio", { name: "日本語音声（拡張）" }),
   );
-  expect(Speech.speak).toHaveBeenLastCalledWith(
-    "もう一つの文。",
-    expect.objectContaining({ voice: "ja-voice" }),
-  );
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   expect(
     screen.getByRole("button", { name: "カッコ別の音声 オフ" }),
   ).toBeOnTheScreen();
   const pitch = screen.getByRole("adjustable", { name: "声の高さ" });
-  const beforeDrag = jest.mocked(Speech.speak).mock.calls.length;
   await fireEvent(pitch, "RNCSliderSlidingStart", {
     nativeEvent: { value: 1 },
   });
   await fireEvent(pitch, "RNCSliderValueChange", {
     nativeEvent: { value: 1.4 },
   });
-  expect(Speech.speak).toHaveBeenCalledTimes(beforeDrag);
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   await fireEvent(pitch, "RNCSliderSlidingComplete", {
     nativeEvent: { value: 1.4 },
   });
-  expect(Speech.speak).toHaveBeenLastCalledWith(
-    "もう一つの文。",
-    expect.objectContaining({ rate: 1.5, pitch: 1.4, voice: "ja-voice" }),
-  );
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   await dismissSheet();
   await fireEvent.press(screen.getByRole("button", { name: "音声設定" }));
   expect(screen.getByRole("radio", { name: "1.5×" })).toBeChecked();
@@ -133,19 +124,13 @@ it("changes playback settings inside the viewer and returns there from the mini 
     screen.getByRole("adjustable", { name: "声の高さ" }),
   ).toHaveAccessibilityValue({ now: 1.4 });
   await fireEvent.press(screen.getByRole("button", { name: "標準に戻す" }));
-  expect(Speech.speak).toHaveBeenLastCalledWith(
-    "もう一つの文。",
-    expect.objectContaining({ pitch: 1 }),
-  );
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   await fireEvent(
     screen.getByRole("adjustable", { name: "声の高さ" }),
     "RNCSliderValueChange",
     { nativeEvent: { value: 1.2 } },
   );
-  expect(Speech.speak).toHaveBeenLastCalledWith(
-    "もう一つの文。",
-    expect.objectContaining({ pitch: 1.2 }),
-  );
+  expect(Speech.speak).toHaveBeenCalledTimes(whileReading);
   await dismissSheet();
   await seek(0);
   expect(screen.getByTestId("current-paragraph")).toHaveTextContent(
