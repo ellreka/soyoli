@@ -104,7 +104,7 @@ OTA アップデートも GitHub Actions が配る（`.github/workflows/update.y
 
 ## ルール
 
-- **開発用のビルドは別のアプリ。** `app.config.ts` が `app.json` を土台にして、`APP_VARIANT=development` のときだけ名前（`Soyoli(dev)`）・ID（`com.ellreka.soyoli.dev`）・URL スキーム（`soyoli-dev`）を変える。本番と同じ端末に並べて入れるためである。この変数は `eas.json` の `development` と、`pnpm start`・`pnpm android`・`pnpm ios` が立てる。どのビルドにも同じ設定は `app.json` に書く。ローカルの `android/`・`ios/` は作ったときの ID のままなので、切り替えたら `npx expo prebuild --clean` で作り直す。
+- **開発用のビルドは別のアプリ。** `app.config.ts` が `app.json` を土台にして、`APP_VARIANT=development` のときだけ名前（`Soyoli(dev)`）・ID（`net.ellreka.soyoli.dev`）・URL スキーム（`soyoli-dev`）を変える。本番と同じ端末に並べて入れるためである。この変数は `eas.json` の `development` と、`pnpm start`・`pnpm android`・`pnpm ios` が立てる。どのビルドにも同じ設定は `app.json` に書く。ローカルの `android/`・`ios/` は作ったときの ID のままなので、切り替えたら `npx expo prebuild --clean` で作り直す。
 - **`expo-speech` にはパッチを当てている**（`patches/`、`pnpm-workspace.yaml` の `patchedDependencies`）。Android で画面（Activity）が壊された後も、プロセスが残っていれば読み上げエンジンにつなぎ直すためである: 元のコードは切れた接続を使い続け、再生しても声が出ない。Expo はモジュールをビルド済みの部品で組み込むので、パッチが効くように `package.json` の `expo.autolinking.android.buildFromSource` でソースからビルドさせている。`expo-speech` を上げるときは、パッチを作り直し、本体で直っていれば両方とも外す。
 - `ios/` と `android/` のディレクトリがない場合、それらは生成される（Continuous Native Generation）。手で作ったり編集したりしてはならない — ネイティブの挙動は `app.json` と config plugin で設定する。
 - Expo Go には、同梱されているネイティブモジュールしか入っていない。ネイティブコードを含むライブラリを足したら、アプリには development build が必要になる: ローカルなら `npx expo run:ios|android`、または `eas build --profile development`。

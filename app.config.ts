@@ -2,7 +2,7 @@ import type { ConfigContext, ExpoConfig } from "expo/config";
 
 const isDevelopment = process.env.APP_VARIANT === "development";
 
-const id = isDevelopment ? "com.ellreka.soyoli.dev" : "com.ellreka.soyoli";
+const id = isDevelopment ? "net.ellreka.soyoli.dev" : "net.ellreka.soyoli";
 
 export default ({ config }: ConfigContext): ExpoConfig => ({
   ...config,

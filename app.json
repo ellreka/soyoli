@@ -16,7 +16,7 @@
       "infoPlist": {
         "UIBackgroundModes": ["audio"]
       },
-      "bundleIdentifier": "com.ellreka.soyoli"
+      "bundleIdentifier": "net.ellreka.soyoli"
     },
     "android": {
       "adaptiveIcon": {
@@ -25,7 +25,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.ellreka.soyoli",
+      "package": "net.ellreka.soyoli",
       "runtimeVersion": {
         "policy": "fingerprint"
       },
